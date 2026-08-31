@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 
 interface Order {
   id: number;
@@ -63,23 +62,13 @@ function ResultsContent() {
   const [loadingPrevious, setLoadingPrevious] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/orders?status=sample_collected&limit=50").then((r) => r.json()),
-      fetch("/api/orders?status=in_progress&limit=50").then((r) => r.json()),
-      fetch("/api/orders?status=registered&limit=50").then((r) => r.json()),
-      fetch("/api/orders?status=completed&limit=50").then((r) => r.json()),
-    ]).then(([a, b, c, d]) => {
-      const all = [...a.orders, ...b.orders, ...c.orders, ...d.orders];
-      const seen = new Set<number>();
-      setOrders(
-        all.filter((o: Order) => {
-          if (seen.has(o.id)) return false;
-          seen.add(o.id);
-          return true;
-        })
-      );
-      setLoading(false);
-    });
+    fetch("/api/orders?limit=100")
+      .then((r) => r.json())
+      .then((data) => {
+        setOrders(data.orders || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -122,7 +111,8 @@ function ResultsContent() {
             })
             .catch(() => setLoadingPrevious(false));
         }
-      });
+      })
+      .catch(() => setLoadingItems(false));
   }, [selectedOrderId]);
 
   const autoFlag = (v: string, min: string | null, max: string | null) => {
@@ -140,6 +130,37 @@ function ResultsContent() {
       return { ...prev, [itemId]: updated };
     });
     setSaved(false);
+  };
+
+  const handleDeleteItem = async (itemId: number) => {
+    if (!selectedOrderId) return;
+    if (!confirm("Yakin ingin menghapus item pemeriksaan ini?")) return;
+
+    try {
+      const token = localStorage.getItem("lis_token");
+      const res = await fetch(`/api/orders/${selectedOrderId}/items`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ itemId }),
+      });
+
+      if (res.ok) {
+        setItems((prev) => prev.filter((i) => i.id !== itemId));
+        setResults((prev) => {
+          const next = { ...prev };
+          delete next[itemId];
+          return next;
+        });
+      } else {
+        const data = await res.json();
+        alert(data.error || "Gagal menghapus item");
+      }
+    } catch {
+      alert("Terjadi kesalahan saat menghapus item");
+    }
   };
 
   const handleSave = async (andPrint: boolean = false) => {
@@ -162,7 +183,6 @@ function ResultsContent() {
       body: JSON.stringify({ results: data }),
     });
 
-    // Update order status to completed and set resultDate
     await fetch(`/api/orders/${selectedOrderId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -172,7 +192,6 @@ function ResultsContent() {
     setSaving(false);
 
     if (andPrint) {
-      // Redirect to print page
       window.location.href = `/dashboard/print?orderId=${selectedOrderId}`;
     } else {
       setSaved(true);
@@ -402,6 +421,7 @@ function ResultsContent() {
                       <th className="text-center py-3 px-4">Nilai Rujukan</th>
                       <th className="text-center py-3 px-4 w-20">Flag</th>
                       <th className="text-left py-3 px-4">Catatan</th>
+                      <th className="text-center py-3 px-4 w-16">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -460,6 +480,17 @@ function ResultsContent() {
                               className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                               placeholder="Catatan..."
                             />
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Hapus Item"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                              </svg>
+                            </button>
                           </td>
                         </tr>
                       );

@@ -54,6 +54,7 @@ export async function GET(
         role: usersTable.role,
         phone: usersTable.phone,
         active: usersTable.active,
+        approved: usersTable.approved,
         tenantId: usersTable.tenantId,
         parentId: usersTable.parentId,
         masaAktif: usersTable.masaAktif,

@@ -9,6 +9,19 @@ let _pool: Pool | null = null;
 let _dbAvailable: boolean | null = null;
 let _lastCheck = 0;
 
+function getPool(): Pool {
+  if (!_pool) {
+    _pool = new Pool({
+      connectionString: databaseUrl,
+      connectionTimeoutMillis: 10000,
+      max: 5,
+      idleTimeoutMillis: 30000,
+      ssl: databaseUrl?.includes("supabase") ? { rejectUnauthorized: false } : undefined,
+    });
+  }
+  return _pool;
+}
+
 export async function isDbAvailable(): Promise<boolean> {
   const now = Date.now();
   if (_dbAvailable !== null && now - _lastCheck < 30000) return _dbAvailable;
@@ -21,17 +34,12 @@ export async function isDbAvailable(): Promise<boolean> {
   }
 
   try {
-    if (_pool) {
-      try { await _pool.end(); } catch {}
-    }
-    _pool = new Pool({
-      connectionString: databaseUrl,
-      connectionTimeoutMillis: 10000,
-      ssl: databaseUrl.includes("supabase") ? { rejectUnauthorized: false } : undefined,
-    });
-    const client = await _pool.connect();
+    const pool = getPool();
+    const client = await pool.connect();
     client.release();
-    _db = drizzle(_pool, { schema });
+    if (!_db) {
+      _db = drizzle(pool, { schema });
+    }
     _dbAvailable = true;
     _lastCheck = now;
     return true;
@@ -39,8 +47,11 @@ export async function isDbAvailable(): Promise<boolean> {
     console.warn("⚠️  Database connection failed:", (err as Error).message);
     _dbAvailable = false;
     _lastCheck = now;
-    _pool = null;
-    _db = null;
+    if (_pool) {
+      try { await _pool.end(); } catch {}
+      _pool = null;
+      _db = null;
+    }
     return false;
   }
 }
