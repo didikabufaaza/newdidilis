@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
   const status = sp.get("status") || "";
   const doctorId = sp.get("doctorId") || "";
   const search = sp.get("search") || "";
-  const reportType = sp.get("type") || "orders";
+  const paymentStatus = sp.get("paymentStatus") || "";
+  const testId = sp.get("testId") || "";
 
   if (!(await isDbAvailable())) {
     let filtered = mockLabOrders;
@@ -26,13 +27,13 @@ export async function GET(request: NextRequest) {
     if (status) filtered = filtered.filter((o) => o.status === status);
 
     return NextResponse.json({
-      reportType,
       summary: {
         totalOrders: filtered.length,
         totalRevenue: filtered.reduce((s, o) => s + parseFloat(o.totalPrice || "0"), 0),
         completedOrders: filtered.filter((o) => o.status === "completed" || o.status === "validated" || o.status === "reported").length,
         pendingOrders: filtered.filter((o) => o.status === "registered" || o.status === "in_progress").length,
       },
+      topTests: [],
       data: filtered.map((o) => ({
         id: o.id,
         orderNo: o.orderNo,
@@ -44,6 +45,7 @@ export async function GET(request: NextRequest) {
         status: o.status,
         priority: o.priority,
         totalPrice: o.totalPrice,
+        paymentStatus: "UMUM",
         createdAt: o.createdAt,
         resultDate: o.resultDate,
       })),
@@ -75,10 +77,20 @@ export async function GET(request: NextRequest) {
         )
       );
     }
+    if (paymentStatus) {
+      conditions.push(eq(patients.paymentStatus, paymentStatus));
+    }
+    if (testId) {
+      const orderIdsWithTest = db
+        .select({ orderId: orderItems.orderId })
+        .from(orderItems)
+        .where(eq(orderItems.testId, parseInt(testId)));
+      conditions.push(sql`${labOrders.id} IN (SELECT order_id FROM order_items WHERE test_id = ${parseInt(testId)})`);
+    }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const [data, countResult, revenueResult, statusCounts] = await Promise.all([
+    const [data, countResult, revenueResult, statusCounts, topTests] = await Promise.all([
       db
         .select({
           id: labOrders.id,
@@ -87,6 +99,7 @@ export async function GET(request: NextRequest) {
           noLab: labOrders.noLab,
           patientName: patients.name,
           patientMrn: patients.medicalRecordNo,
+          paymentStatus: patients.paymentStatus,
           doctorName: doctors.name,
           status: labOrders.status,
           priority: labOrders.priority,
@@ -118,21 +131,36 @@ export async function GET(request: NextRequest) {
         .innerJoin(patients, eq(labOrders.patientId, patients.id))
         .where(whereClause)
         .groupBy(labOrders.status),
+      db
+        .select({
+          testName: testCatalog.name,
+          testCode: testCatalog.code,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(orderItems)
+        .innerJoin(testCatalog, eq(orderItems.testId, testCatalog.id))
+        .innerJoin(labOrders, eq(orderItems.orderId, labOrders.id))
+        .innerJoin(patients, eq(labOrders.patientId, patients.id))
+        .where(whereClause)
+        .groupBy(testCatalog.name, testCatalog.code)
+        .orderBy(desc(sql<number>`count(*)::int`))
+        .limit(5),
     ]);
 
     const statusMap: Record<string, number> = {};
     statusCounts.forEach((s) => (statusMap[s.status] = s.count));
 
     return NextResponse.json({
-      reportType,
       summary: {
         totalOrders: countResult[0]?.count || 0,
         totalRevenue: parseFloat(String(revenueResult[0]?.total || "0")),
         completedOrders: (statusMap["completed"] || 0) + (statusMap["validated"] || 0) + (statusMap["reported"] || 0),
         pendingOrders: (statusMap["registered"] || 0) + (statusMap["in_progress"] || 0) + (statusMap["sample_collected"] || 0),
       },
+      topTests,
       data: data.map((d) => ({
         ...d,
+        paymentStatus: d.paymentStatus || "UMUM",
         createdAt: d.createdAt?.toISOString(),
         resultDate: d.resultDate?.toISOString(),
       })),

@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
           address: patients.address,
           bloodType: patients.bloodType,
           insuranceNo: patients.insuranceNo,
+          paymentStatus: patients.paymentStatus,
           doctorId: patients.doctorId,
           doctorName: doctors.name,
           doctorSpecialization: doctors.specialization,
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
 
   if (!(await isDbAvailable())) {
     const body = await request.json();
-    const { name, gender, dateOfBirth, age, phone, email, address, bloodType, insuranceNo, doctorId, room, diagnosis } = body;
+    const { name, gender, dateOfBirth, age, phone, email, address, bloodType, insuranceNo, paymentStatus, doctorId, room, diagnosis } = body;
     if (!name || !gender || !dateOfBirth) {
       return NextResponse.json(
         { error: "Nama, jenis kelamin, dan tanggal lahir wajib diisi" },
@@ -142,6 +143,7 @@ export async function POST(request: NextRequest) {
       address: address || null,
       bloodType: bloodType || null,
       insuranceNo: insuranceNo || null,
+      paymentStatus: paymentStatus || "UMUM",
       doctorId: doctorId ? parseInt(doctorId) : null,
       room: room || null,
       diagnosis: diagnosis || null,
@@ -167,6 +169,7 @@ export async function POST(request: NextRequest) {
       address,
       bloodType,
       insuranceNo,
+      paymentStatus,
       doctorId,
       room,
       diagnosis,
@@ -224,6 +227,7 @@ export async function POST(request: NextRequest) {
         address: address || null,
         bloodType: bloodType || null,
         insuranceNo: insuranceNo || null,
+        paymentStatus: paymentStatus || "UMUM",
         doctorId: doctorId ? parseInt(doctorId) : null,
         room: room || null,
         diagnosis: diagnosis || null,

@@ -84,6 +84,7 @@ export const patients = pgTable("patients", {
   address: text("address"),
   bloodType: varchar("blood_type", { length: 5 }),
   insuranceNo: varchar("insurance_no", { length: 100 }),
+  paymentStatus: varchar("payment_status", { length: 100 }).default("UMUM"),
   doctorId: integer("doctor_id").references(() => doctors.id),
   room: varchar("room", { length: 100 }),
   diagnosis: text("diagnosis"),

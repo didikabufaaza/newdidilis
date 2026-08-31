@@ -9,6 +9,7 @@ interface ReportData {
   noLab: string | null;
   patientName: string;
   patientMrn: string;
+  paymentStatus: string;
   doctorName: string | null;
   status: string;
   priority: string;
@@ -24,9 +25,21 @@ interface Summary {
   pendingOrders: number;
 }
 
+interface TopTest {
+  testName: string;
+  testCode: string;
+  count: number;
+}
+
 interface Doctor {
   id: number;
   name: string;
+}
+
+interface TestCatalog {
+  id: number;
+  name: string;
+  code: string;
 }
 
 const statusLabels: Record<string, string> = {
@@ -47,11 +60,18 @@ const statusColors: Record<string, string> = {
   reported: "bg-purple-100 text-purple-700",
 };
 
+const paymentLabels: Record<string, string> = {
+  BPJS: "BPJS",
+  UMUM: "UMUM",
+};
+
 export default function ReportsPage() {
   const [data, setData] = useState<ReportData[]>([]);
   const [summary, setSummary] = useState<Summary>({ totalOrders: 0, totalRevenue: 0, completedOrders: 0, pendingOrders: 0 });
+  const [topTests, setTopTests] = useState<TopTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [tests, setTests] = useState<TestCatalog[]>([]);
 
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
@@ -62,12 +82,17 @@ export default function ReportsPage() {
   const [status, setStatus] = useState("");
   const [doctorId, setDoctorId] = useState("");
   const [search, setSearch] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("");
+  const [testFilter, setTestFilter] = useState("");
 
   useEffect(() => {
-    fetch("/api/doctors")
-      .then((r) => r.json())
-      .then((d) => setDoctors(d.doctors || []))
-      .catch(() => {});
+    Promise.all([
+      fetch("/api/doctors").then((r) => r.json()),
+      fetch("/api/tests?limit=200").then((r) => r.json()),
+    ]).then(([d, t]) => {
+      setDoctors(d.doctors || []);
+      setTests(t.tests || []);
+    }).catch(() => {});
   }, []);
 
   async function fetchReport() {
@@ -78,12 +103,15 @@ export default function ReportsPage() {
     if (status) params.set("status", status);
     if (doctorId) params.set("doctorId", doctorId);
     if (search) params.set("search", search);
+    if (paymentFilter) params.set("paymentStatus", paymentFilter);
+    if (testFilter) params.set("testId", testFilter);
 
     try {
       const res = await fetch(`/api/reports?${params}`);
       const result = await res.json();
       setData(result.data || []);
       setSummary(result.summary || { totalOrders: 0, totalRevenue: 0, completedOrders: 0, pendingOrders: 0 });
+      setTopTests(result.topTests || []);
     } catch {
       setData([]);
     }
@@ -97,13 +125,14 @@ export default function ReportsPage() {
   function exportExcel() {
     import("xlsx").then((XLSX) => {
       const wsData = [
-        ["No. Lab", "No. Permintaan", "No. RM", "Nama Pasien", "Dokter", "Status", "Prioritas", "Total", "Tanggal Order", "Tanggal Hasil"],
+        ["No. Lab", "No. Permintaan", "No. RM", "Pasien", "Dokter", "Status Pembayaran", "Status", "Prioritas", "Total", "Tgl Order", "Tgl Hasil"],
         ...data.map((d) => [
           d.noLab || d.orderNo,
           d.noPermintaan || "-",
           d.patientMrn,
           d.patientName,
           d.doctorName || "-",
+          d.paymentStatus || "UMUM",
           statusLabels[d.status] || d.status,
           d.priority === "cito" ? "CITO" : d.priority === "urgent" ? "Urgent" : "Normal",
           parseFloat(d.totalPrice).toLocaleString("id-ID"),
@@ -112,7 +141,7 @@ export default function ReportsPage() {
         ]),
       ];
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws["!cols"] = [{ wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 25 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 15 }, { wch: 14 }, { wch: 14 }];
+      ws["!cols"] = [{ wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 25 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 10 }, { wch: 15 }, { wch: 14 }, { wch: 14 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Laporan");
       XLSX.writeFile(wb, `Laporan_Order_${dateFrom}_sd_${dateTo}.xlsx`);
@@ -132,6 +161,7 @@ export default function ReportsPage() {
         <td>${d.patientMrn}</td>
         <td>${d.patientName}</td>
         <td>${d.doctorName || "-"}</td>
+        <td>${d.paymentStatus || "UMUM"}</td>
         <td>${statusLabels[d.status] || d.status}</td>
         <td style="text-align:right">Rp ${parseFloat(d.totalPrice).toLocaleString("id-ID")}</td>
         <td>${d.createdAt ? new Date(d.createdAt).toLocaleDateString("id-ID") : "-"}</td>
@@ -163,7 +193,7 @@ export default function ReportsPage() {
         <div class="summary-box"><div class="label">Total Pendapatan</div><div class="value">Rp ${summary.totalRevenue.toLocaleString("id-ID")}</div></div>
       </div>
       <table>
-        <thead><tr><th>No</th><th>No. Lab</th><th>No. RM</th><th>Pasien</th><th>Dokter</th><th>Status</th><th>Total</th><th>Tanggal</th></tr></thead>
+        <thead><tr><th>No</th><th>No. Lab</th><th>No. RM</th><th>Pasien</th><th>Dokter</th><th>Pembayaran</th><th>Status</th><th>Total</th><th>Tanggal</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       </body></html>`);
@@ -176,57 +206,6 @@ export default function ReportsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Laporan</h1>
         <p className="text-gray-500 text-sm mt-1">Lihat dan ekspor laporan order pemeriksaan laboratorium</p>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Dari Tanggal</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Sampai Tanggal</label>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-              <option value="">Semua Status</option>
-              {Object.entries(statusLabels).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Dokter</label>
-            <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-              <option value="">Semua Dokter</option>
-              {doctors.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Cari</label>
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="No. Lab / Pasien..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 mt-3">
-          <button onClick={fetchReport}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
-            🔍 Tampilkan
-          </button>
-          <button onClick={() => { setDateFrom(new Date(new Date().setDate(1)).toISOString().split("T")[0]); setDateTo(new Date().toISOString().split("T")[0]); setStatus(""); setDoctorId(""); setSearch(""); }}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-            Reset
-          </button>
-        </div>
       </div>
 
       {/* Summary Cards */}
@@ -249,23 +228,117 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Export Buttons */}
-      <div className="flex items-center gap-2 mb-4">
-        <button onClick={exportExcel}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          Export Excel
-        </button>
-        <button onClick={exportPDF}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          Export PDF
-        </button>
-        <span className="text-xs text-gray-400 ml-2">{data.length} data</span>
+      {/* Top Tests Card */}
+      {topTests.length > 0 && (
+        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-5 mb-6 shadow-sm">
+          <h3 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+            </svg>
+            Pemeriksaan Paling Banyak
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            {topTests.map((t, i) => (
+              <div key={i} className="bg-white rounded-lg p-3 border border-indigo-100 text-center">
+                <p className="text-lg font-bold text-indigo-700">{t.count}</p>
+                <p className="text-[11px] font-medium text-gray-700 mt-0.5">{t.testName}</p>
+                <p className="text-[10px] text-gray-400 font-mono">{t.testCode}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Dari Tanggal</label>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Sampai Tanggal</label>
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+              <option value="">Semua Status</option>
+              {Object.entries(statusLabels).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Status Pembayaran</label>
+            <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+              <option value="">Semua Pembayaran</option>
+              <option value="BPJS">BPJS</option>
+              <option value="UMUM">UMUM</option>
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Dokter</label>
+            <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+              <option value="">Semua Dokter</option>
+              {doctors.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Parameter Pemeriksaan</label>
+            <select value={testFilter} onChange={(e) => setTestFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+              <option value="">Semua Pemeriksaan</option>
+              {tests.map((t) => (
+                <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Cari</label>
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="No. Lab / Pasien..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <button onClick={fetchReport}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+            Tampilkan
+          </button>
+          <button onClick={() => {
+            const d = new Date(); d.setDate(1);
+            setDateFrom(d.toISOString().split("T")[0]);
+            setDateTo(new Date().toISOString().split("T")[0]);
+            setStatus(""); setDoctorId(""); setSearch(""); setPaymentFilter(""); setTestFilter("");
+          }}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+            Reset
+          </button>
+          <div className="flex-1" />
+          <button onClick={exportExcel}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Excel
+          </button>
+          <button onClick={exportPDF}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            PDF
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -284,15 +357,13 @@ export default function ReportsPage() {
                 <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase">
                   <th className="text-left py-3 px-4 w-12">No</th>
                   <th className="text-left py-3 px-4">No. Lab</th>
-                  <th className="text-left py-3 px-4">No. Permintaan</th>
                   <th className="text-left py-3 px-4">No. RM</th>
                   <th className="text-left py-3 px-4">Pasien</th>
                   <th className="text-left py-3 px-4">Dokter</th>
+                  <th className="text-center py-3 px-4">Pembayaran</th>
                   <th className="text-center py-3 px-4">Status</th>
-                  <th className="text-center py-3 px-4">Prioritas</th>
                   <th className="text-right py-3 px-4">Total</th>
                   <th className="text-left py-3 px-4">Tgl Order</th>
-                  <th className="text-left py-3 px-4">Tgl Hasil</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -300,23 +371,23 @@ export default function ReportsPage() {
                   <tr key={d.id} className="hover:bg-gray-50/60 transition-colors">
                     <td className="py-3 px-4 text-gray-400 text-xs">{i + 1}</td>
                     <td className="py-3 px-4 font-mono text-xs font-semibold text-blue-600">{d.noLab || d.orderNo}</td>
-                    <td className="py-3 px-4 font-mono text-xs text-gray-600">{d.noPermintaan || "-"}</td>
                     <td className="py-3 px-4 font-mono text-xs text-gray-600">{d.patientMrn}</td>
                     <td className="py-3 px-4 font-medium text-gray-900">{d.patientName}</td>
                     <td className="py-3 px-4 text-gray-600 text-xs">{d.doctorName || "-"}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-semibold ${
+                        d.paymentStatus === "BPJS" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
+                      }`}>
+                        {d.paymentStatus || "UMUM"}
+                      </span>
+                    </td>
                     <td className="py-3 px-4 text-center">
                       <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-semibold ${statusColors[d.status] || "bg-gray-100 text-gray-700"}`}>
                         {statusLabels[d.status] || d.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${d.priority === "cito" ? "bg-red-100 text-red-700" : d.priority === "urgent" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
-                        {d.priority === "cito" ? "CITO" : d.priority === "urgent" ? "URG" : "-"}
-                      </span>
-                    </td>
                     <td className="py-3 px-4 text-right font-mono text-xs">Rp {parseFloat(d.totalPrice).toLocaleString("id-ID")}</td>
                     <td className="py-3 px-4 text-xs text-gray-500">{d.createdAt ? new Date(d.createdAt).toLocaleDateString("id-ID") : "-"}</td>
-                    <td className="py-3 px-4 text-xs text-gray-500">{d.resultDate ? new Date(d.resultDate).toLocaleDateString("id-ID") : "-"}</td>
                   </tr>
                 ))}
               </tbody>

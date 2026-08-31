@@ -19,6 +19,7 @@ interface Patient {
   address: string | null;
   bloodType: string | null;
   insuranceNo: string | null;
+  paymentStatus: string | null;
   doctorId: number | null;
   doctorName: string | null;
   doctorSpecialization: string | null;
@@ -81,6 +82,8 @@ export default function PatientsPage() {
     address: "",
     bloodType: "",
     insuranceNo: "",
+    paymentStatus: "UMUM",
+    customPayment: "",
     doctorId: "",
     room: "",
     diagnosis: "",
@@ -169,6 +172,8 @@ export default function PatientsPage() {
       address: "",
       bloodType: "",
       insuranceNo: "",
+      paymentStatus: "UMUM",
+      customPayment: "",
       doctorId: doctors[0]?.id?.toString() || "",
       room: "Poli Umum",
       diagnosis: "",
@@ -178,6 +183,8 @@ export default function PatientsPage() {
 
   const openEdit = (p: Patient) => {
     setEditing(p);
+    const ps = p.paymentStatus || "UMUM";
+    const isCustom = !["BPJS", "UMUM"].includes(ps);
     setForm({
       noLab: p.noLab || `LAB-${new Date().getFullYear()}-${String(p.id).padStart(4, "0")}`,
       noPermintaan: p.noPermintaan || `REQ-${new Date().getFullYear()}-${String(p.id).padStart(4, "0")}`,
@@ -191,6 +198,8 @@ export default function PatientsPage() {
       address: p.address || "",
       bloodType: p.bloodType || "",
       insuranceNo: p.insuranceNo || "",
+      paymentStatus: isCustom ? "Jaminan Lainnya" : ps,
+      customPayment: isCustom ? ps : "",
       doctorId: p.doctorId?.toString() || "",
       room: p.room || "",
       diagnosis: p.diagnosis || "",
@@ -206,10 +215,15 @@ export default function PatientsPage() {
       const url = editing ? `/api/patients/${editing.id}` : "/api/patients";
       const method = editing ? "PUT" : "POST";
 
+      const submitData = {
+        ...form,
+        paymentStatus: form.paymentStatus === "Jaminan Lainnya" ? form.customPayment : form.paymentStatus,
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(submitData),
       });
 
       if (res.ok) {
@@ -622,6 +636,33 @@ export default function PatientsPage() {
                       placeholder="000123456789"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     />
+                  </div>
+
+                  {/* Status Pembayaran */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Status Pembayaran *
+                    </label>
+                    <select
+                      value={form.paymentStatus}
+                      onChange={(e) => setForm({ ...form, paymentStatus: e.target.value, customPayment: "" })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      required
+                    >
+                      <option value="BPJS">BPJS</option>
+                      <option value="UMUM">UMUM (Bayar Sendiri)</option>
+                      <option value="Jaminan Lainnya">Jaminan Lainnya</option>
+                    </select>
+                    {form.paymentStatus === "Jaminan Lainnya" && (
+                      <input
+                        type="text"
+                        value={form.customPayment}
+                        onChange={(e) => setForm({ ...form, customPayment: e.target.value })}
+                        placeholder="Sebutkan jenis jaminan..."
+                        className="w-full px-3 py-2 mt-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        required
+                      />
+                    )}
                   </div>
 
                   {/* Alamat */}
