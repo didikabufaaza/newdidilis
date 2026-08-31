@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!(await isDbAvailable())) {
-    const orders = getMockOrdersByMRN(mrn, excludeOrderId ? parseInt(excludeOrderId) : undefined);
+    let orders = getMockOrdersByMRN(mrn, excludeOrderId ? parseInt(excludeOrderId) : undefined);
 
     const results = orders.map((order) => {
       const items = getMockOrderItems(order.id).filter(
@@ -43,19 +43,16 @@ export async function GET(request: NextRequest) {
 
   try {
     const { db } = await import("@/db");
-    const { labOrders, orderItems, testCatalog } = await import("@/db/schema");
+    const { labOrders, orderItems, testCatalog, patients } = await import("@/db/schema");
     const { eq, and, sql } = await import("drizzle-orm");
 
     const patientOrders = await db
       .select({ id: labOrders.id, orderNo: labOrders.orderNo, createdAt: labOrders.createdAt })
       .from(labOrders)
-      .innerJoin(
-        (await import("@/db/schema")).patients,
-        eq(labOrders.patientId, (await import("@/db/schema")).patients.id)
-      )
+      .innerJoin(patients, eq(labOrders.patientId, patients.id))
       .where(
         and(
-          eq((await import("@/db/schema")).patients.medicalRecordNo, mrn),
+          eq(patients.medicalRecordNo, mrn),
           excludeOrderId ? sql`${labOrders.id} != ${parseInt(excludeOrderId)}` : undefined
         )
       )

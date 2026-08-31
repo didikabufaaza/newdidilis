@@ -93,7 +93,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [addingTests, setAddingTests] = useState(false);
 
   const fetchOrder = async () => {
-    const res = await fetch(`/api/orders/${id}`);
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
+    const res = await fetch(`/api/orders/${id}`, { headers });
     if (!res.ok) {
       router.push("/dashboard/orders");
       return;
@@ -110,9 +116,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const updateStatus = async (newStatus: string) => {
     setUpdating(true);
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
     await fetch(`/api/orders/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ status: newStatus }),
     });
     await fetchOrder();
@@ -124,7 +136,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     setSelectedNewTests([]);
     setTestSearch("");
 
-    const res = await fetch("/api/tests?all=true");
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
+    const res = await fetch("/api/tests?all=true", { headers });
     const data = await res.json();
     setAvailableTests(data.tests || []);
   };
@@ -134,9 +152,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     setAddingTests(true);
 
     try {
+      const token = localStorage.getItem("lis_token");
+      const viewAsUserId = localStorage.getItem("viewAsUserId");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
       const res = await fetch(`/api/orders/${id}/items`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           testIds: selectedNewTests.map((t) => t.id),
         }),

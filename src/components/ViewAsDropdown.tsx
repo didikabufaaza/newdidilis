@@ -7,6 +7,7 @@ interface User {
   name: string;
   email: string;
   username: string;
+  role: string;
 }
 
 interface ViewAsDropdownProps {
@@ -45,12 +46,14 @@ export default function ViewAsDropdown({ currentUserId }: ViewAsDropdownProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function handleSelect(userId: number) {
+  function handleSelect(userId: number, userRole: string) {
     if (userId === currentUserId) {
       localStorage.removeItem("viewAsUserId");
+      localStorage.removeItem("viewAsUserRole");
       setViewAsUserId(null);
     } else {
       localStorage.setItem("viewAsUserId", userId.toString());
+      localStorage.setItem("viewAsUserRole", userRole);
       setViewAsUserId(userId);
     }
     setIsOpen(false);
@@ -59,6 +62,7 @@ export default function ViewAsDropdown({ currentUserId }: ViewAsDropdownProps) {
 
   function handleReset() {
     localStorage.removeItem("viewAsUserId");
+    localStorage.removeItem("viewAsUserRole");
     setViewAsUserId(null);
     setIsOpen(false);
     window.location.reload();
@@ -98,13 +102,14 @@ export default function ViewAsDropdown({ currentUserId }: ViewAsDropdownProps) {
           {users.filter((u) => u.id !== currentUserId).map((user) => (
             <button
               key={user.id}
-              onClick={() => handleSelect(user.id)}
+              onClick={() => handleSelect(user.id, user.role)}
               className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0 ${
                 viewAsUserId === user.id ? "bg-blue-50 text-blue-700" : "text-gray-700"
               }`}
             >
               <div className="font-medium">{user.name}</div>
               <div className="text-xs text-gray-500">{user.email}</div>
+              <div className="text-[10px] text-gray-400 mt-0.5 capitalize">{user.role}</div>
             </button>
           ))}
         </div>

@@ -62,7 +62,13 @@ function ResultsContent() {
   const [loadingPrevious, setLoadingPrevious] = useState(false);
 
   useEffect(() => {
-    fetch("/api/orders?limit=100")
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
+    fetch("/api/orders?limit=100", { headers })
       .then((r) => r.json())
       .then((data) => {
         setOrders(data.orders || []);
@@ -74,7 +80,13 @@ function ResultsContent() {
   useEffect(() => {
     if (!selectedOrderId) return;
     setLoadingItems(true);
-    fetch(`/api/orders/${selectedOrderId}`)
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
+    fetch(`/api/orders/${selectedOrderId}`, { headers })
       .then((r) => r.json())
       .then((data) => {
         setItems(data.items || []);
@@ -103,7 +115,7 @@ function ResultsContent() {
 
         if (data.order?.patientMrn) {
           setLoadingPrevious(true);
-          fetch(`/api/results/previous?mrn=${data.order.patientMrn}&excludeOrderId=${selectedOrderId}`)
+          fetch(`/api/results/previous?mrn=${data.order.patientMrn}&excludeOrderId=${selectedOrderId}`, { headers })
             .then((r) => r.json())
             .then((prev) => {
               setPreviousResults(prev.previousResults || []);
@@ -177,15 +189,21 @@ function ResultsContent() {
         notes: v.notes || undefined,
       }));
 
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
     await fetch(`/api/orders/${selectedOrderId}/results`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ results: data }),
     });
 
     await fetch(`/api/orders/${selectedOrderId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ status: "completed" }),
     });
 

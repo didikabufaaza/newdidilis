@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDbAvailable } from "@/db";
 import { patients, doctors } from "@/db/schema";
-import { eq, ilike, or, sql, desc } from "drizzle-orm";
+import { eq, ilike, or, sql, desc, and } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
 import { mockPatients } from "@/lib/mock-data";
 
@@ -11,15 +11,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const viewAsUserId = user.viewAsUserId;
+
   if (!(await isDbAvailable())) {
     const search = request.nextUrl.searchParams.get("search") || "";
     const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
 
     let filtered = mockPatients;
+    if (viewAsUserId) {
+      filtered = filtered.filter((p) => (p as any).createdBy === viewAsUserId);
+    }
     if (search) {
       const q = search.toLowerCase();
-      filtered = mockPatients.filter(
+      filtered = filtered.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           (p.medicalRecordNo && p.medicalRecordNo.toLowerCase().includes(q)) ||
@@ -47,15 +52,23 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
     const offset = (page - 1) * limit;
 
-    const conditions = search
-      ? or(
+    const conditions = [];
+    if (viewAsUserId) {
+      conditions.push(eq(patients.createdBy, viewAsUserId));
+    }
+    if (search) {
+      conditions.push(
+        or(
           ilike(patients.name, `%${search}%`),
           ilike(patients.medicalRecordNo, `%${search}%`),
           ilike(patients.noLab, `%${search}%`),
           ilike(patients.noPermintaan, `%${search}%`),
           ilike(patients.phone, `%${search}%`)
         )
-      : undefined;
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const [data, total] = await Promise.all([
       db
@@ -84,14 +97,14 @@ export async function GET(request: NextRequest) {
         })
         .from(patients)
         .leftJoin(doctors, eq(patients.doctorId, doctors.id))
-        .where(conditions)
+        .where(whereClause)
         .orderBy(desc(patients.createdAt))
         .limit(limit)
         .offset(offset),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(patients)
-        .where(conditions),
+        .where(whereClause),
     ]);
 
     return NextResponse.json({
@@ -147,6 +160,7 @@ export async function POST(request: NextRequest) {
       doctorId: doctorId ? parseInt(doctorId) : null,
       room: room || null,
       diagnosis: diagnosis || null,
+      createdBy: user.viewAsUserId || user.id,
       createdAt: new Date(),
       updatedAt: new Date(),
       doctorName: null,
@@ -231,6 +245,7 @@ export async function POST(request: NextRequest) {
         doctorId: doctorId ? parseInt(doctorId) : null,
         room: room || null,
         diagnosis: diagnosis || null,
+        createdBy: user.viewAsUserId || user.id,
         createdAt: new Date(),
         updatedAt: new Date(),
       })

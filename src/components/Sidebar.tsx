@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -134,6 +134,16 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    href: "/dashboard/reports/parameter",
+    label: "Laporan Parameter",
+    group: "laporan",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605" />
+      </svg>
+    ),
+  },
   // Group: Admin (superadmin only)
   {
     href: "/dashboard/users",
@@ -162,9 +172,20 @@ export default function Sidebar({ user }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Read view-as role from localStorage to filter menus
+  const [viewAsRole, setViewAsRole] = useState<string | null>(null);
+  useEffect(() => {
+    const role = localStorage.getItem("viewAsUserRole");
+    if (role) setViewAsRole(role);
+  }, []);
+
+  const effectiveRole = viewAsRole || user.role;
+
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     localStorage.removeItem("lis_token");
+    localStorage.removeItem("viewAsUserId");
+    localStorage.removeItem("viewAsUserRole");
     window.location.href = "/login";
   };
 
@@ -173,7 +194,7 @@ export default function Sidebar({ user }: SidebarProps) {
     return pathname.startsWith(href);
   };
 
-  const filteredItems = navItems.filter((item) => !item.role || item.role === user.role);
+  const filteredItems = navItems.filter((item) => !item.role || item.role === effectiveRole);
 
   const groupedItems: { group: string; label: string; items: NavItem[] }[] = [];
   let lastGroup = "";

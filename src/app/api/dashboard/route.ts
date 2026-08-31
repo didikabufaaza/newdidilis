@@ -3,8 +3,13 @@ import { isDbAvailable } from "@/db";
 import { getAuthUser } from "@/lib/auth";
 import { mockLabOrders, mockPatients, mockTestCategories, mockTestCatalog, getMockOrderItems, mockTestPackages, mockDoctors, mockLetterhead } from "@/lib/mock-data";
 
-function getMockDashboard() {
-  const orders = mockLabOrders;
+function getMockDashboard(viewAsUserId?: number) {
+  let orders = mockLabOrders;
+  let patientList = mockPatients;
+  if (viewAsUserId) {
+    orders = orders.filter((o) => (o as any).createdBy === viewAsUserId);
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -37,7 +42,7 @@ function getMockDashboard() {
 
   return {
     stats: {
-      totalPatients: mockPatients.length,
+      totalPatients: patientList.length,
       totalOrders: orders.length,
       todayOrders,
       pendingOrders,
@@ -56,17 +61,22 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const viewAsUserId = user.viewAsUserId;
+
   if (!(await isDbAvailable())) {
-    return NextResponse.json(getMockDashboard());
+    return NextResponse.json(getMockDashboard(viewAsUserId));
   }
 
   try {
     const { db } = await import("@/db");
     const { labOrders, patients, orderItems } = await import("@/db/schema");
-    const { eq, sql, count, gte } = await import("drizzle-orm");
+    const { eq, sql, count, gte, and } = await import("drizzle-orm");
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    const viewAsCondition = viewAsUserId ? eq(labOrders.createdBy, viewAsUserId) : undefined;
+    const patientViewAsCondition = viewAsUserId ? eq(patients.createdBy, viewAsUserId) : undefined;
 
     const [
       totalPatients,
@@ -79,15 +89,28 @@ export async function GET() {
       recentOrders,
       pendingResults,
     ] = await Promise.all([
-      db.select({ count: count() }).from(patients),
-      db.select({ count: count() }).from(labOrders),
-      db.select({ count: count() }).from(labOrders).where(gte(labOrders.createdAt, today)),
-      db.select({ count: count() }).from(labOrders).where(sql`${labOrders.status} IN ('registered', 'sample_collected')`),
-      db.select({ count: count() }).from(labOrders).where(eq(labOrders.status, "in_progress")),
-      db.select({ count: count() }).from(labOrders).where(sql`${labOrders.status} IN ('completed', 'validated', 'reported')`),
-      db.select({ status: labOrders.status, count: count() }).from(labOrders).groupBy(labOrders.status),
-      db.select({ id: labOrders.id, orderNo: labOrders.orderNo, status: labOrders.status, priority: labOrders.priority, createdAt: labOrders.createdAt, patientName: patients.name, patientMrn: patients.medicalRecordNo }).from(labOrders).innerJoin(patients, eq(labOrders.patientId, patients.id)).orderBy(sql`${labOrders.createdAt} DESC`).limit(10),
-      db.select({ count: count() }).from(orderItems).where(eq(orderItems.resultStatus, "pending")),
+      viewAsUserId
+        ? db.select({ count: count() }).from(patients).where(patientViewAsCondition)
+        : db.select({ count: count() }).from(patients),
+      viewAsUserId
+        ? db.select({ count: count() }).from(labOrders).where(viewAsCondition)
+        : db.select({ count: count() }).from(labOrders),
+      db.select({ count: count() }).from(labOrders).where(viewAsUserId ? and(gte(labOrders.createdAt, today), viewAsCondition) : gte(labOrders.createdAt, today)),
+      db.select({ count: count() }).from(labOrders).where(viewAsUserId ? and(sql`${labOrders.status} IN ('registered', 'sample_collected')`, viewAsCondition) : sql`${labOrders.status} IN ('registered', 'sample_collected')`),
+      db.select({ count: count() }).from(labOrders).where(viewAsUserId ? and(eq(labOrders.status, "in_progress"), viewAsCondition) : eq(labOrders.status, "in_progress")),
+      db.select({ count: count() }).from(labOrders).where(viewAsUserId ? and(sql`${labOrders.status} IN ('completed', 'validated', 'reported')`, viewAsCondition) : sql`${labOrders.status} IN ('completed', 'validated', 'reported')`),
+      viewAsUserId
+        ? db.select({ status: labOrders.status, count: count() }).from(labOrders).where(viewAsCondition).groupBy(labOrders.status)
+        : db.select({ status: labOrders.status, count: count() }).from(labOrders).groupBy(labOrders.status),
+      db.select({ id: labOrders.id, orderNo: labOrders.orderNo, status: labOrders.status, priority: labOrders.priority, createdAt: labOrders.createdAt, patientName: patients.name, patientMrn: patients.medicalRecordNo })
+        .from(labOrders)
+        .innerJoin(patients, eq(labOrders.patientId, patients.id))
+        .where(viewAsCondition)
+        .orderBy(sql`${labOrders.createdAt} DESC`)
+        .limit(10),
+      viewAsUserId
+        ? db.select({ count: count() }).from(orderItems).innerJoin(labOrders, eq(orderItems.orderId, labOrders.id)).where(and(eq(orderItems.resultStatus, "pending"), viewAsCondition))
+        : db.select({ count: count() }).from(orderItems).where(eq(orderItems.resultStatus, "pending")),
     ]);
 
     return NextResponse.json({
@@ -105,6 +128,6 @@ export async function GET() {
     });
   } catch (err) {
     console.error("Dashboard DB error, using mock:", err);
-    return NextResponse.json(getMockDashboard());
+    return NextResponse.json(getMockDashboard(viewAsUserId));
   }
 }

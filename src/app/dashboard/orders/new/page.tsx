@@ -80,11 +80,17 @@ function NewOrderContent() {
   const [testTab, setTestTab] = useState<"item" | "paket">("item");
 
   useEffect(() => {
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
     Promise.all([
-      fetch("/api/patients?limit=100").then((r) => r.json()),
-      fetch("/api/doctors").then((r) => r.json()),
-      fetch("/api/tests?all=true").then((r) => r.json()),
-      fetch("/api/packages").then((r) => r.json()),
+      fetch("/api/patients?limit=100", { headers }).then((r) => r.json()),
+      fetch("/api/doctors", { headers }).then((r) => r.json()),
+      fetch("/api/tests?all=true", { headers }).then((r) => r.json()),
+      fetch("/api/packages", { headers }).then((r) => r.json()),
     ]).then(([pData, dData, tData, pkgData]) => {
       const pts: Patient[] = pData.patients || [];
       setPatients(pts);
@@ -142,9 +148,15 @@ function NewOrderContent() {
     setSaving(true);
 
     try {
+      const token = localStorage.getItem("lis_token");
+      const viewAsUserId = localStorage.getItem("viewAsUserId");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           patientId: selectedPatient.id,
           doctorId: selectedDoctor ? parseInt(selectedDoctor) : null,

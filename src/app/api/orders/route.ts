@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const viewAsUserId = user.viewAsUserId;
+
   if (!(await isDbAvailable())) {
     const search = request.nextUrl.searchParams.get("search") || "";
     const status = request.nextUrl.searchParams.get("status") || "";
@@ -18,6 +20,9 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
 
     let filtered = mockLabOrders;
+    if (viewAsUserId) {
+      filtered = filtered.filter((o) => (o as any).createdBy === viewAsUserId);
+    }
     if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter(
@@ -52,6 +57,9 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     const conditions = [];
+    if (viewAsUserId) {
+      conditions.push(eq(labOrders.createdBy, viewAsUserId));
+    }
     if (search) {
       conditions.push(
         or(

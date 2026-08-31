@@ -10,6 +10,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;
+  viewAsUserId?: number;
 }
 
 export async function createToken(user: AuthUser): Promise<string> {
@@ -35,24 +36,37 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
 
 export async function getAuthUser(): Promise<AuthUser | null> {
   try {
+    let user: AuthUser | null = null;
+
     // Try cookie first
     const cookieStore = await cookies();
     const cookieToken = cookieStore.get("lis_token")?.value;
     if (cookieToken) {
-      const user = await verifyToken(cookieToken);
-      if (user) return user;
+      user = await verifyToken(cookieToken);
     }
 
     // Fallback: check Authorization header
-    const headerStore = await headers();
-    const authHeader = headerStore.get("authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      const headerToken = authHeader.substring(7);
-      const user = await verifyToken(headerToken);
-      if (user) return user;
+    if (!user) {
+      const headerStore = await headers();
+      const authHeader = headerStore.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        user = await verifyToken(authHeader.substring(7));
+      }
     }
 
-    return null;
+    if (!user) return null;
+
+    // Read X-View-As header for superadmin impersonation
+    const headerStore = await headers();
+    const viewAsHeader = headerStore.get("x-view-as");
+    if (viewAsHeader && user.role === "superadmin") {
+      const viewAsUserId = parseInt(viewAsHeader);
+      if (!isNaN(viewAsUserId)) {
+        user = { ...user, viewAsUserId };
+      }
+    }
+
+    return user;
   } catch {
     return null;
   }

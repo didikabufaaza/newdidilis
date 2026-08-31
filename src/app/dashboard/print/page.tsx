@@ -311,9 +311,15 @@ function PrintContent() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
     Promise.all([
-      fetch("/api/orders?limit=100").then((r) => r.json()),
-      fetch("/api/settings/letterhead").then((r) => r.json()),
+      fetch("/api/orders?limit=100", { headers }).then((r) => r.json()),
+      fetch("/api/settings/letterhead", { headers }).then((r) => r.json()),
     ]).then(([ordersData, lh]) => {
       setOrders(ordersData.orders || []);
       setLetterhead(lh.settings);
@@ -328,7 +334,12 @@ function PrintContent() {
   const loadOrderDetail = async (orderId: number) => {
     setSelectedOrderId(orderId);
     setLoadingOrder(true);
-    const res = await fetch(`/api/orders/${orderId}`);
+    const token = localStorage.getItem("lis_token");
+    const viewAsUserId = localStorage.getItem("viewAsUserId");
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+    const res = await fetch(`/api/orders/${orderId}`, { headers });
     const data = await res.json();
     setOrder(data.order);
     setItems(data.items.filter((i: OrderItem) => i.result));

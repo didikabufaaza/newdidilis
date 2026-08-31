@@ -88,6 +88,7 @@ export const patients = pgTable("patients", {
   doctorId: integer("doctor_id").references(() => doctors.id),
   room: varchar("room", { length: 100 }),
   diagnosis: text("diagnosis"),
+  createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

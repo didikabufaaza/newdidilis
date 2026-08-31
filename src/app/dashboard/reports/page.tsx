@@ -14,6 +14,7 @@ interface ReportData {
   status: string;
   priority: string;
   totalPrice: string;
+  tests: { testName: string; testCode: string }[];
   createdAt: string;
   resultDate: string | null;
 }
@@ -60,11 +61,6 @@ const statusColors: Record<string, string> = {
   reported: "bg-purple-100 text-purple-700",
 };
 
-const paymentLabels: Record<string, string> = {
-  BPJS: "BPJS",
-  UMUM: "UMUM",
-};
-
 export default function ReportsPage() {
   const [data, setData] = useState<ReportData[]>([]);
   const [summary, setSummary] = useState<Summary>({ totalOrders: 0, totalRevenue: 0, completedOrders: 0, pendingOrders: 0 });
@@ -107,7 +103,13 @@ export default function ReportsPage() {
     if (testFilter) params.set("testId", testFilter);
 
     try {
-      const res = await fetch(`/api/reports?${params}`);
+      const token = localStorage.getItem("lis_token");
+      const viewAsUserId = localStorage.getItem("viewAsUserId");
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
+      const res = await fetch(`/api/reports?${params}`, { headers });
       const result = await res.json();
       setData(result.data || []);
       setSummary(result.summary || { totalOrders: 0, totalRevenue: 0, completedOrders: 0, pendingOrders: 0 });
@@ -125,13 +127,14 @@ export default function ReportsPage() {
   function exportExcel() {
     import("xlsx").then((XLSX) => {
       const wsData = [
-        ["No. Lab", "No. Permintaan", "No. RM", "Pasien", "Dokter", "Status Pembayaran", "Status", "Prioritas", "Total", "Tgl Order", "Tgl Hasil"],
+        ["No. Lab", "No. Permintaan", "No. RM", "Pasien", "Dokter", "Pemeriksaan", "Status Pembayaran", "Status", "Prioritas", "Total", "Tgl Order", "Tgl Hasil"],
         ...data.map((d) => [
           d.noLab || d.orderNo,
           d.noPermintaan || "-",
           d.patientMrn,
           d.patientName,
           d.doctorName || "-",
+          (d.tests || []).map((t) => t.testName).join(", ") || "-",
           d.paymentStatus || "UMUM",
           statusLabels[d.status] || d.status,
           d.priority === "cito" ? "CITO" : d.priority === "urgent" ? "Urgent" : "Normal",
@@ -141,7 +144,7 @@ export default function ReportsPage() {
         ]),
       ];
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws["!cols"] = [{ wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 25 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 10 }, { wch: 15 }, { wch: 14 }, { wch: 14 }];
+      ws["!cols"] = [{ wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 25 }, { wch: 30 }, { wch: 40 }, { wch: 16 }, { wch: 14 }, { wch: 10 }, { wch: 15 }, { wch: 14 }, { wch: 14 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Laporan");
       XLSX.writeFile(wb, `Laporan_Order_${dateFrom}_sd_${dateTo}.xlsx`);
@@ -161,6 +164,7 @@ export default function ReportsPage() {
         <td>${d.patientMrn}</td>
         <td>${d.patientName}</td>
         <td>${d.doctorName || "-"}</td>
+        <td>${(d.tests || []).map((t) => t.testName).join(", ") || "-"}</td>
         <td>${d.paymentStatus || "UMUM"}</td>
         <td>${statusLabels[d.status] || d.status}</td>
         <td style="text-align:right">Rp ${parseFloat(d.totalPrice).toLocaleString("id-ID")}</td>
@@ -193,7 +197,7 @@ export default function ReportsPage() {
         <div class="summary-box"><div class="label">Total Pendapatan</div><div class="value">Rp ${summary.totalRevenue.toLocaleString("id-ID")}</div></div>
       </div>
       <table>
-        <thead><tr><th>No</th><th>No. Lab</th><th>No. RM</th><th>Pasien</th><th>Dokter</th><th>Pembayaran</th><th>Status</th><th>Total</th><th>Tanggal</th></tr></thead>
+        <thead><tr><th>No</th><th>No. Lab</th><th>No. RM</th><th>Pasien</th><th>Dokter</th><th>Pemeriksaan</th><th>Pembayaran</th><th>Status</th><th>Total</th><th>Tanggal</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       </body></html>`);
@@ -360,6 +364,7 @@ export default function ReportsPage() {
                   <th className="text-left py-3 px-4">No. RM</th>
                   <th className="text-left py-3 px-4">Pasien</th>
                   <th className="text-left py-3 px-4">Dokter</th>
+                  <th className="text-left py-3 px-4">Pemeriksaan</th>
                   <th className="text-center py-3 px-4">Pembayaran</th>
                   <th className="text-center py-3 px-4">Status</th>
                   <th className="text-right py-3 px-4">Total</th>
@@ -374,6 +379,24 @@ export default function ReportsPage() {
                     <td className="py-3 px-4 font-mono text-xs text-gray-600">{d.patientMrn}</td>
                     <td className="py-3 px-4 font-medium text-gray-900">{d.patientName}</td>
                     <td className="py-3 px-4 text-gray-600 text-xs">{d.doctorName || "-"}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex flex-wrap gap-1 max-w-[280px]">
+                        {(d.tests || []).length > 0 ? (
+                          d.tests.slice(0, 3).map((t, ti) => (
+                            <span key={ti} className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              {t.testName}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                        {(d.tests || []).length > 3 && (
+                          <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
+                            +{d.tests.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-3 px-4 text-center">
                       <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-semibold ${
                         d.paymentStatus === "BPJS" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"

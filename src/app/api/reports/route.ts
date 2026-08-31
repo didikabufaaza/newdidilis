@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const viewAsUserId = user.viewAsUserId;
   const sp = request.nextUrl.searchParams;
   const dateFrom = sp.get("dateFrom") || "";
   const dateTo = sp.get("dateTo") || "";
@@ -22,6 +23,9 @@ export async function GET(request: NextRequest) {
 
   if (!(await isDbAvailable())) {
     let filtered = mockLabOrders;
+    if (viewAsUserId) {
+      filtered = filtered.filter((o) => (o as any).createdBy === viewAsUserId);
+    }
     if (dateFrom) filtered = filtered.filter((o) => new Date(o.createdAt) >= new Date(dateFrom));
     if (dateTo) filtered = filtered.filter((o) => new Date(o.createdAt) <= new Date(dateTo + "T23:59:59"));
     if (status) filtered = filtered.filter((o) => o.status === status);
@@ -46,6 +50,7 @@ export async function GET(request: NextRequest) {
         priority: o.priority,
         totalPrice: o.totalPrice,
         paymentStatus: "UMUM",
+        tests: [],
         createdAt: o.createdAt,
         resultDate: o.resultDate,
       })),
@@ -55,6 +60,9 @@ export async function GET(request: NextRequest) {
   try {
     const conditions = [];
 
+    if (viewAsUserId) {
+      conditions.push(eq(labOrders.createdBy, viewAsUserId));
+    }
     if (dateFrom) {
       conditions.push(gte(labOrders.createdAt, new Date(dateFrom)));
     }
@@ -81,10 +89,6 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(patients.paymentStatus, paymentStatus));
     }
     if (testId) {
-      const orderIdsWithTest = db
-        .select({ orderId: orderItems.orderId })
-        .from(orderItems)
-        .where(eq(orderItems.testId, parseInt(testId)));
       conditions.push(sql`${labOrders.id} IN (SELECT order_id FROM order_items WHERE test_id = ${parseInt(testId)})`);
     }
 
@@ -147,6 +151,26 @@ export async function GET(request: NextRequest) {
         .limit(5),
     ]);
 
+    // Fetch order items (tests) for each order
+    const orderIds = data.map((d) => d.id);
+    let orderItemsMap: Record<number, { testName: string; testCode: string }[]> = {};
+    if (orderIds.length > 0) {
+      const allItems = await db
+        .select({
+          orderId: orderItems.orderId,
+          testName: testCatalog.name,
+          testCode: testCatalog.code,
+        })
+        .from(orderItems)
+        .innerJoin(testCatalog, eq(orderItems.testId, testCatalog.id))
+        .where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map((id) => sql`${id}`), sql`, `)})`);
+
+      for (const item of allItems) {
+        if (!orderItemsMap[item.orderId]) orderItemsMap[item.orderId] = [];
+        orderItemsMap[item.orderId].push({ testName: item.testName, testCode: item.testCode });
+      }
+    }
+
     const statusMap: Record<string, number> = {};
     statusCounts.forEach((s) => (statusMap[s.status] = s.count));
 
@@ -161,6 +185,7 @@ export async function GET(request: NextRequest) {
       data: data.map((d) => ({
         ...d,
         paymentStatus: d.paymentStatus || "UMUM",
+        tests: orderItemsMap[d.id] || [],
         createdAt: d.createdAt?.toISOString(),
         resultDate: d.resultDate?.toISOString(),
       })),
