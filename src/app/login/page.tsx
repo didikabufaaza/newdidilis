@@ -3,8 +3,8 @@
 import { useState, FormEvent } from "react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@labklinik.id");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,12 +30,10 @@ export default function LoginPage() {
         return;
       }
 
-      // Store token in localStorage as fallback
       if (data.token) {
         localStorage.setItem("lis_token", data.token);
       }
 
-      // Full page reload to pick up cookie
       window.location.href = "/dashboard";
     } catch {
       setError("Terjadi kesalahan koneksi. Silakan coba lagi.");
@@ -45,22 +43,18 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-700 via-blue-600 to-blue-800 text-white flex-col justify-center items-center p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-40 h-40 border-2 border-white rounded-full" />
-          <div className="absolute bottom-40 right-20 w-60 h-60 border-2 border-white rounded-full" />
-          <div className="absolute top-1/2 left-1/3 w-20 h-20 border-2 border-white rounded-full" />
-        </div>
-        <div className="relative z-10 text-center max-w-md">
-          <div className="bg-white/20 backdrop-blur-sm w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-8">
-            <svg className="w-14 h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-1.47 4.41a2.25 2.25 0 0 1-2.133 1.59H8.603a2.25 2.25 0 0 1-2.133-1.59L5 14.5m14 0H5" />
-            </svg>
-          </div>
-          <h1 className="text-4xl font-bold mb-4">LabKlinik LIS</h1>
-          <p className="text-xl text-blue-100 mb-6">Sistem Informasi Laboratorium Klinik</p>
-          <p className="text-blue-200 text-sm leading-relaxed">
+      {/* Left Panel - Background Image */}
+      <div
+        className="hidden lg:flex lg:w-1/2 text-white flex-col justify-end items-start p-12 relative overflow-hidden"
+        style={{
+          backgroundImage: "url('/login-bg.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/30 to-transparent" />
+        <div className="relative z-10 max-w-lg">
+          <p className="text-white/90 text-base leading-relaxed drop-shadow-lg font-medium">
             Sistem terintegrasi untuk pengelolaan laboratorium klinik, mulai dari
             pendaftaran pasien, permintaan pemeriksaan, input hasil, hingga
             validasi dan pelaporan hasil laboratorium.
@@ -77,7 +71,6 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-1.47 4.41a2.25 2.25 0 0 1-2.133 1.59H8.603a2.25 2.25 0 0 1-2.133-1.59L5 14.5m14 0H5" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-blue-700">LabKlinik LIS</h1>
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Masuk ke Sistem</h2>
@@ -121,17 +114,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-8 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-            <p className="text-xs text-gray-500 font-semibold mb-2 uppercase tracking-wider">Demo Akun</p>
-            <div className="space-y-1.5 text-sm text-gray-600">
-              <p><span className="font-medium text-gray-800">Admin:</span> admin@labklinik.id</p>
-              <p><span className="font-medium text-gray-800">Analis:</span> budi@labklinik.id</p>
-              <p><span className="font-medium text-gray-800">Resepsionis:</span> dewi@labklinik.id</p>
-              <p className="pt-1 border-t border-gray-100"><span className="font-medium text-gray-800">Password:</span> password123</p>
-            </div>
-          </div>
-
-          <p className="mt-6 text-center text-sm text-gray-500">
+          <p className="mt-8 text-center text-sm text-gray-500">
             Belum punya akun?{" "}
             <a href="/register" className="text-blue-600 hover:text-blue-700 font-semibold">
               Daftar Sekarang
