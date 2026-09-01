@@ -55,7 +55,7 @@ export default function TestsPage() {
     referenceMax: "",
     referenceText: "",
     price: "",
-    turnaroundHours: "",
+    turnaroundMinutes: "",
   });
 
   const fetchTests = useCallback(async () => {
@@ -106,13 +106,14 @@ export default function TestsPage() {
       referenceMax: "",
       referenceText: "",
       price: "",
-      turnaroundHours: "",
+      turnaroundMinutes: "",
     });
     setShowModal(true);
   };
 
   const openEdit = (t: Test) => {
     setEditing(t);
+    const tatMinutes = t.turnaroundHours ? (t.turnaroundHours * 60).toString() : "";
     setForm({
       code: t.code,
       name: t.name,
@@ -123,7 +124,7 @@ export default function TestsPage() {
       referenceMax: t.referenceMax || "",
       referenceText: t.referenceText || "",
       price: t.price || "",
-      turnaroundHours: t.turnaroundHours?.toString() || "",
+      turnaroundMinutes: tatMinutes,
     });
     setShowModal(true);
   };
@@ -146,12 +147,16 @@ export default function TestsPage() {
         referenceMax: form.referenceMax || null,
         referenceText: form.referenceText || null,
         price: form.price || "0",
-        turnaroundHours: form.turnaroundHours ? parseInt(form.turnaroundHours) : null,
+        turnaroundMinutes: form.turnaroundMinutes ? parseInt(form.turnaroundMinutes) : null,
       };
+
+      const token = localStorage.getItem("lis_token");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -175,7 +180,11 @@ export default function TestsPage() {
 
     setDeleting(id);
     try {
-      const res = await fetch(`/api/tests/${id}`, { method: "DELETE" });
+      const token = localStorage.getItem("lis_token");
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/tests/${id}`, { method: "DELETE", headers });
       if (res.ok) {
         fetchTests();
       } else {
@@ -186,6 +195,15 @@ export default function TestsPage() {
       alert("Gagal menghapus");
     }
     setDeleting(null);
+  };
+
+  const formatTat = (hours: number | null) => {
+    if (!hours) return "-";
+    const minutes = hours * 60;
+    if (minutes < 60) return `${minutes} mnt`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m > 0 ? `${h} j ${m} mnt` : `${h} jam`;
   };
 
   return (
@@ -272,7 +290,7 @@ export default function TestsPage() {
                           Rp {parseInt(t.price || "0").toLocaleString("id-ID")}
                         </td>
                         <td className="py-3 px-4 text-center text-gray-500 text-xs">
-                          {t.turnaroundHours ? `${t.turnaroundHours} jam` : "-"}
+                          {formatTat(t.turnaroundHours)}
                         </td>
                         <td className="py-3 px-4 text-right">
                           <button
@@ -320,15 +338,15 @@ export default function TestsPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kode Tes *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kode Tes</label>
                   <input
                     type="text"
                     value={form.code}
                     onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                    placeholder="e.g., HEM-001"
+                    placeholder="Otomatis jika kosong"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    required
                   />
+                  <p className="text-[10px] text-blue-500 mt-1">Kosongkan untuk kode otomatis</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
@@ -434,15 +452,15 @@ export default function TestsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">TAT (jam)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">TAT (menit)</label>
                   <input
                     type="number"
-                    value={form.turnaroundHours}
-                    onChange={(e) => setForm({ ...form, turnaroundHours: e.target.value })}
-                    placeholder="e.g., 24"
+                    value={form.turnaroundMinutes}
+                    onChange={(e) => setForm({ ...form, turnaroundMinutes: e.target.value })}
+                    placeholder="e.g., 120"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Turnaround Time</p>
+                  <p className="text-xs text-gray-400 mt-1">Turnaround Time dalam menit (120 = 2 jam)</p>
                 </div>
               </div>
 

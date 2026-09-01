@@ -51,7 +51,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getAuthUser();
-  if (!user) {
+  if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -84,6 +84,10 @@ export async function PUT(
   try {
     const body = await request.json();
 
+    const turnaroundHours = body.turnaroundMinutes
+      ? Math.ceil(body.turnaroundMinutes / 60)
+      : (body.turnaroundHours || null);
+
     const [test] = await db
       .update(testCatalog)
       .set({
@@ -96,7 +100,7 @@ export async function PUT(
         referenceMax: body.referenceMax || null,
         referenceText: body.referenceText || null,
         price: body.price || "0",
-        turnaroundHours: body.turnaroundHours || null,
+        turnaroundHours,
         active: body.active !== false,
       })
       .where(eq(testCatalog.id, testId))
@@ -121,7 +125,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getAuthUser();
-  if (!user) {
+  if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
