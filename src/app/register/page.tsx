@@ -52,12 +52,16 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-700 via-blue-600 to-blue-800 text-white flex-col justify-center items-center p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-40 h-40 border-2 border-white rounded-full" />
-          <div className="absolute bottom-40 right-20 w-60 h-60 border-2 border-white rounded-full" />
-          <div className="absolute top-1/2 left-1/3 w-20 h-20 border-2 border-white rounded-full" />
-        </div>
+      <div
+        className="hidden lg:flex lg:w-[70%] text-white flex-col justify-center items-center p-12 relative overflow-hidden"
+        style={{
+          backgroundImage: "url('/login-bg.jpg')",
+          backgroundSize: "contain",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/30 to-transparent" />
         <div className="relative z-10 text-center max-w-md">
           <div className="bg-white/20 backdrop-blur-sm w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-8">
             <svg className="w-14 h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -66,14 +70,14 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-4xl font-bold mb-4">LabKlinik LIS</h1>
           <p className="text-xl text-blue-100 mb-6">Sistem Informasi Laboratorium Klinik</p>
-          <p className="text-blue-200 text-sm leading-relaxed">
+          <p className="text-blue-100/90 text-sm leading-relaxed">
             Daftar untuk membuat akun baru dan mulai menggunakan sistem laboratorium klinik.
           </p>
         </div>
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 flex flex-col justify-center items-center p-8 bg-gray-50">
+      <div className="flex-1 lg:w-[30%] flex flex-col justify-center items-center p-8 bg-gray-50">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div className="bg-blue-600 text-white w-12 h-12 rounded-xl flex items-center justify-center">

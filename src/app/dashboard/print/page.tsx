@@ -92,7 +92,7 @@ function LabResultDocument({
   const tglHasil = order.resultDate || order.createdAt;
 
   return (
-    <div style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#000", lineHeight: 1.4 }}>
+    <div style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#000", lineHeight: 1.45 }}>
       {/* KOP SURAT */}
       <table style={{ width: "100%", marginBottom: "12px", borderBottom: "3px double #333", paddingBottom: "10px" }}>
         <tbody>
@@ -108,17 +108,17 @@ function LabResultDocument({
             </td>
             <td style={{ textAlign: "center", verticalAlign: "middle", padding: "0 10px" }}>
               {letterhead?.pemda && (
-                <div style={{ fontSize: "11px", fontWeight: 600, marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "3px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   {letterhead.pemda}
                 </div>
               )}
-              <div style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "3px", textTransform: "uppercase", letterSpacing: "1px" }}>
+              <div style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>
                 {letterhead?.hospitalName || "LABORATORIUM KLINIK RUMAH SAKIT"}
               </div>
               {letterhead?.hospitalAddress && (
-                <div style={{ fontSize: "9px", color: "#333", marginBottom: "2px" }}>{letterhead.hospitalAddress}</div>
+                <div style={{ fontSize: "10.5px", color: "#333", marginBottom: "2px" }}>{letterhead.hospitalAddress}</div>
               )}
-              <div style={{ fontSize: "9px", color: "#333" }}>
+              <div style={{ fontSize: "10.5px", color: "#333" }}>
                 {letterhead?.hospitalEmail && `Email: ${letterhead.hospitalEmail}`}
                 {letterhead?.hospitalEmail && letterhead?.hospitalPhone && " | "}
                 {letterhead?.hospitalPhone && `Telp: ${letterhead.hospitalPhone}`}
@@ -139,20 +139,20 @@ function LabResultDocument({
 
       {/* JUDUL HASIL */}
       <div style={{ textAlign: "center", marginBottom: "14px" }}>
-        <div style={{ fontSize: "14px", fontWeight: "bold", textDecoration: "underline", letterSpacing: "1px" }}>
+        <div style={{ fontSize: "17px", fontWeight: "bold", textDecoration: "underline", letterSpacing: "1px" }}>
           HASIL PEMERIKSAAN LABORATORIUM
         </div>
       </div>
 
       {/* TABEL IDENTITAS LENGKAP */}
-      <table style={{ width: "100%", fontSize: "10px", marginBottom: "14px", borderCollapse: "collapse" }}>
+      <table style={{ width: "100%", fontSize: "12px", marginBottom: "16px", borderCollapse: "collapse" }}>
         <tbody>
           <tr>
-            <td style={{ width: "135px", padding: "2.5px 0", verticalAlign: "top" }}>No. Lab</td>
+            <td style={{ width: "150px", padding: "3px 0", verticalAlign: "top" }}>No. Lab</td>
             <td style={{ width: "8px", verticalAlign: "top" }}>:</td>
             <td style={{ fontWeight: "bold", fontFamily: "monospace", verticalAlign: "top" }}>{displayNoLab}</td>
             
-            <td style={{ width: "135px", padding: "2.5px 0", verticalAlign: "top" }}>Tgl / Jam Permintaan</td>
+            <td style={{ width: "150px", padding: "3px 0", verticalAlign: "top" }}>Tgl / Jam Permintaan</td>
             <td style={{ width: "8px", verticalAlign: "top" }}>:</td>
             <td style={{ verticalAlign: "top" }}>
               {tglPermintaan ? format(new Date(tglPermintaan), "dd/MM/yyyy HH:mm:ss", { locale: idLocale }) : "-"}
@@ -220,27 +220,27 @@ function LabResultDocument({
       {/* HASIL PEMERIKSAAN PER KATEGORI */}
       {Object.entries(groupedItems).map(([category, catItems]) => (
         <div key={category} style={{ marginBottom: "12px" }}>
-          <div style={{ fontSize: "10px", fontWeight: "bold", background: "#e2e8f0", padding: "5px 8px", borderLeft: "3px solid #2563eb", marginBottom: "4px", textTransform: "uppercase" }}>
+          <div style={{ fontSize: "12px", fontWeight: "bold", background: "#e2e8f0", padding: "6px 10px", borderLeft: "3px solid #2563eb", marginBottom: "5px", textTransform: "uppercase" }}>
             {category}
           </div>
-          <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse", border: "1px solid #cbd5e1" }}>
+          <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse", border: "1px solid #cbd5e1" }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "35%" }}>Parameter Pemeriksaan</th>
-                <th style={{ textAlign: "center", padding: "6px 8px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "18%" }}>Hasil</th>
-                <th style={{ textAlign: "center", padding: "6px 8px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "12%" }}>Satuan</th>
-                <th style={{ textAlign: "center", padding: "6px 8px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "25%" }}>Nilai Rujukan</th>
-                <th style={{ textAlign: "center", padding: "6px 8px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "10%" }}>Keterangan</th>
+                <th style={{ textAlign: "left", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "32%" }}>Parameter Pemeriksaan</th>
+                <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "18%" }}>Hasil</th>
+                <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "12%" }}>Satuan</th>
+                <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "28%" }}>Nilai Rujukan</th>
+                <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "10%" }}>Keterangan</th>
               </tr>
             </thead>
             <tbody>
               {catItems.map((item, idx) => (
                 <tr key={item.id} style={{ background: idx % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
-                  <td style={{ padding: "5px 8px", borderBottom: "1px solid #e2e8f0" }}>{item.testName}</td>
+                  <td style={{ padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>{item.testName}</td>
                   <td
                     style={{
                       textAlign: "center",
-                      padding: "5px 8px",
+                      padding: "7px 10px",
                       borderBottom: "1px solid #e2e8f0",
                       fontWeight: item.flag ? "bold" : "normal",
                       color: item.flag === "H" ? "#dc2626" : item.flag === "L" ? "#2563eb" : "#000000",
@@ -248,18 +248,18 @@ function LabResultDocument({
                   >
                     {item.result}
                   </td>
-                  <td style={{ textAlign: "center", padding: "5px 8px", borderBottom: "1px solid #e2e8f0" }}>{item.unit || "-"}</td>
-                  <td style={{ textAlign: "center", padding: "5px 8px", borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ textAlign: "center", padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>{item.unit || "-"}</td>
+                  <td style={{ textAlign: "center", padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>
                     {item.referenceText || (item.referenceMin && item.referenceMax ? `${item.referenceMin} - ${item.referenceMax}` : "-")}
                   </td>
                   <td
                     style={{
                       textAlign: "center",
-                      padding: "5px 8px",
+                      padding: "7px 10px",
                       borderBottom: "1px solid #e2e8f0",
                       fontWeight: "bold",
                       color: item.flag === "H" ? "#dc2626" : item.flag === "L" ? "#2563eb" : "#000000",
-                      fontSize: "12px",
+                      fontSize: "13px",
                     }}
                   >
                     {item.flag === "H" ? "↑ High" : item.flag === "L" ? "↓ Low" : "Normal"}
@@ -272,19 +272,19 @@ function LabResultDocument({
       ))}
 
       {/* TANDA TANGAN */}
-      <div style={{ marginTop: "35px", display: "flex", justifyContent: "flex-end" }}>
-        <div style={{ textAlign: "center", width: "220px" }}>
-          <div style={{ marginBottom: "50px", fontSize: "10px" }}>
+      <div style={{ marginTop: "40px", display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ textAlign: "center", width: "240px" }}>
+          <div style={{ marginBottom: "55px", fontSize: "12px" }}>
             {format(new Date(), "'Tanggal' dd MMMM yyyy", { locale: idLocale })}
           </div>
-          <div style={{ borderTop: "1px solid #000", paddingTop: "5px", fontSize: "10px", fontWeight: 600 }}>
+          <div style={{ borderTop: "1px solid #000", paddingTop: "5px", fontSize: "12px", fontWeight: 600 }}>
             Penanggung Jawab Laboratorium
           </div>
         </div>
       </div>
 
       {/* FOOTER KETERANGAN & CATATAN */}
-      <div style={{ marginTop: "25px", paddingTop: "10px", borderTop: "1px solid #e2e8f0", fontSize: "8px", color: "#64748b" }}>
+      <div style={{ marginTop: "30px", paddingTop: "12px", borderTop: "1px solid #e2e8f0", fontSize: "10px", color: "#64748b" }}>
         <div><strong>Keterangan Flag:</strong> ↑ High = Nilai di atas batas normal &nbsp;&nbsp;|&nbsp;&nbsp; ↓ Low = Nilai di bawah batas normal</div>
         <div style={{ marginTop: "2px" }}>Hasil pemeriksaan laboratorium ini telah tervalidasi secara sistem informasi laboratorium (LIS).</div>
         <div style={{ marginTop: "2px", fontStyle: "italic" }}>
@@ -481,7 +481,7 @@ function PrintContent() {
                 <div className="p-4 bg-gray-200/70 overflow-auto" style={{ maxHeight: "75vh" }}>
                   <div
                     className="bg-white mx-auto shadow-2xl rounded-sm"
-                    style={{ width: "210mm", minHeight: "297mm", padding: "12mm 15mm" }}
+                    style={{ width: "210mm", minHeight: "297mm", padding: "10mm" }}
                   >
                     {order && <LabResultDocument order={order} items={items} letterhead={letterhead} />}
                   </div>

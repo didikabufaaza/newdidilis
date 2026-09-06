@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { toPng } from "html-to-image";
 import AnalysisResultPanel from "@/components/AnalysisResultPanel";
 import { getCanAnalyzeClient } from "@/lib/client-analysis";
 import Link from "next/link";
@@ -56,8 +57,10 @@ function AnalyzeContent() {
   const [search, setSearch] = useState("");
   const [canAnalyze, setCanAnalyze] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const [analysisError, setAnalysisError] = useState("");
+  const captureRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCanAnalyze(getCanAnalyzeClient());
@@ -135,6 +138,26 @@ function AnalyzeContent() {
       setAnalysisError("Terjadi kesalahan saat menganalisis hasil");
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleScreenshot = async () => {
+    if (!captureRef.current) return;
+    setCapturing(true);
+    try {
+      const dataUrl = await toPng(captureRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+      });
+      const link = document.createElement("a");
+      link.download = `analisa-ai-${orderHeader?.noLab || orderHeader?.orderNo || selectedOrderId}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      setAnalysisError("Gagal mengambil screenshot");
+    } finally {
+      setCapturing(false);
     }
   };
 
@@ -240,9 +263,9 @@ function AnalyzeContent() {
               <p className="text-gray-500 text-sm">Memuat data pemeriksaan...</p>
             </div>
           ) : (
-            <>
+            <div ref={captureRef} className="space-y-6">
               {/* Patient + Results summary */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm mb-6">
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                 <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50/40">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -267,20 +290,36 @@ function AnalyzeContent() {
                         <p className="text-xs text-gray-500 mt-1 italic">Diagnosis: {orderHeader.diagnosis}</p>
                       )}
                     </div>
-                    <button
-                      onClick={handleAnalyze}
-                      disabled={analyzing || resultItems.length === 0}
-                      className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
-                    >
-                      {analyzing ? (
-                        <>
-                          <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                          Menganalisa...
-                        </>
-                      ) : (
-                        <>🤖 Analisa Hasil Sekarang</>
-                      )}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={handleScreenshot}
+                        disabled={capturing || resultItems.length === 0}
+                        className="inline-flex items-center gap-2 bg-white border border-gray-300 hover:border-gray-400 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
+                      >
+                        {capturing ? (
+                          <>
+                            <span className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" />
+                            Memproses...
+                          </>
+                        ) : (
+                          <>📸 Screenshot</>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={analyzing || resultItems.length === 0}
+                        className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
+                      >
+                        {analyzing ? (
+                          <>
+                            <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            Menganalisa...
+                          </>
+                        ) : (
+                          <>🤖 Analisa Hasil Sekarang</>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   {resultItems.length === 0 && (
                     <p className="text-xs text-amber-600 mt-2">
@@ -353,7 +392,7 @@ function AnalyzeContent() {
               )}
 
               {analysis && <AnalysisResultPanel analysis={analysis} />}
-            </>
+            </div>
           )}
         </div>
       </div>

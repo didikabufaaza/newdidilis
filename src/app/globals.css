@@ -80,7 +80,7 @@ html {
     width: 100% !important;
     height: auto !important;
     margin: 0 !important;
-    padding: 10mm !important;
+    padding: 0 !important;
     background: white !important;
     z-index: 99999 !important;
   }
@@ -89,10 +89,10 @@ html {
     visibility: visible !important;
   }
 
-  /* A4 page */
+  /* A4 page with 1cm margins */
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 10mm;
   }
 
   /* Prevent breaks inside elements */
