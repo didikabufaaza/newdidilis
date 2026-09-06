@@ -45,10 +45,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       {/* Left Panel - Background Image */}
       <div
-        className="hidden lg:flex lg:w-1/2 text-white flex-col justify-end items-start p-12 relative overflow-hidden"
+        className="hidden lg:flex lg:w-[70%] text-white flex-col justify-end items-start p-12 relative overflow-hidden"
         style={{
           backgroundImage: "url('/login-bg.jpg')",
-          backgroundSize: "cover",
+          backgroundSize: "contain",
+          backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
         }}
       >
@@ -63,7 +64,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 flex flex-col justify-center items-center p-8 bg-gray-50">
+      <div className="flex-1 lg:w-[30%] flex flex-col justify-center items-center p-8 bg-gray-50">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div className="bg-blue-600 text-white w-12 h-12 rounded-xl flex items-center justify-center">

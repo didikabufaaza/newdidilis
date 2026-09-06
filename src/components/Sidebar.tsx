@@ -26,6 +26,7 @@ interface NavItem {
   icon: React.ReactNode;
   role?: string;
   group?: string;
+  aiOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -144,6 +145,18 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  // Group: AI (analisa)
+  {
+    href: "/dashboard/results/analyze",
+    label: "Analisa AI",
+    group: "ai",
+    aiOnly: true,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+      </svg>
+    ),
+  },
   // Group: Admin (superadmin only)
   {
     href: "/dashboard/users",
@@ -164,6 +177,7 @@ const groupLabels: Record<string, string> = {
   master: "MASTER DATA",
   pengaturan: "PENGATURAN",
   laporan: "LAPORAN",
+  ai: "AI",
   admin: "ADMINISTRASI",
 };
 
@@ -174,9 +188,11 @@ export default function Sidebar({ user }: SidebarProps) {
 
   // Read view-as role from localStorage to filter menus
   const [viewAsRole, setViewAsRole] = useState<string | null>(null);
+  const [canAnalyze, setCanAnalyze] = useState(false);
   useEffect(() => {
     const role = localStorage.getItem("viewAsUserRole");
     if (role) setViewAsRole(role);
+    setCanAnalyze(localStorage.getItem("canAnalyze") === "true");
   }, []);
 
   const effectiveRole = viewAsRole || user.role;
@@ -194,7 +210,11 @@ export default function Sidebar({ user }: SidebarProps) {
     return pathname.startsWith(href);
   };
 
-  const filteredItems = navItems.filter((item) => !item.role || item.role === effectiveRole);
+  const filteredItems = navItems.filter(
+    (item) =>
+      (!item.role || item.role === effectiveRole) &&
+      (!item.aiOnly || canAnalyze)
+  );
 
   const groupedItems: { group: string; label: string; items: NavItem[] }[] = [];
   let lastGroup = "";

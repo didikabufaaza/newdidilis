@@ -31,6 +31,7 @@ export default function DashboardLayout({
       })
       .then((data) => {
         setUser(data.user);
+        localStorage.setItem("canAnalyze", data.user?.canAnalyze ? "true" : "false");
         setChecking(false);
       })
       .catch(() => {

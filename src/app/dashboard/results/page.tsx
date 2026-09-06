@@ -2,6 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import AnalysisResultPanel from "@/components/AnalysisResultPanel";
+import { getCanAnalyzeClient } from "@/lib/client-analysis";
 
 interface Order {
   id: number;
@@ -60,8 +62,13 @@ function ResultsContent() {
   const [previousResults, setPreviousResults] = useState<{ orderNo: string; orderDate: Date; items: { testCode: string; testName: string; result: string; unit: string | null; referenceMin: string | null; referenceMax: string | null; flag: string | null }[] }[]>([]);
   const [showDelta, setShowDelta] = useState(false);
   const [loadingPrevious, setLoadingPrevious] = useState(false);
+  const [canAnalyze, setCanAnalyze] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysisError, setAnalysisError] = useState("");
 
   useEffect(() => {
+    setCanAnalyze(getCanAnalyzeClient());
     const token = localStorage.getItem("lis_token");
     const viewAsUserId = localStorage.getItem("viewAsUserId");
     const headers: Record<string, string> = {};
@@ -80,6 +87,8 @@ function ResultsContent() {
   useEffect(() => {
     if (!selectedOrderId) return;
     setLoadingItems(true);
+    setAnalysis(null);
+    setAnalysisError("");
     const token = localStorage.getItem("lis_token");
     const viewAsUserId = localStorage.getItem("viewAsUserId");
     const headers: Record<string, string> = {};
@@ -217,6 +226,51 @@ function ResultsContent() {
     }
   };
 
+  const handleAnalyze = async () => {
+    if (!selectedOrderId) return;
+    setAnalyzing(true);
+    setAnalysis(null);
+    setAnalysisError("");
+    try {
+      const token = localStorage.getItem("lis_token");
+      const viewAsUserId = localStorage.getItem("viewAsUserId");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
+
+      const currentResults = items
+        .map((item) => {
+          const r = results[item.id];
+          return {
+            testName: item.testName,
+            result: r?.result || null,
+            unit: item.unit,
+            referenceMin: item.referenceMin,
+            referenceMax: item.referenceMax,
+            referenceText: item.referenceText,
+            flag: r?.flag || item.flag || null,
+          };
+        })
+        .filter((i) => i.result);
+
+      const res = await fetch("/api/ai/analyze", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ orderId: selectedOrderId, items: currentResults }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAnalysisError(data.error || "Gagal menganalisis hasil");
+        return;
+      }
+      setAnalysis(data.analysis);
+    } catch {
+      setAnalysisError("Terjadi kesalahan saat menganalisis hasil");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const filteredOrders = orders.filter(
     (o) =>
       o.orderNo.toLowerCase().includes(search.toLowerCase()) ||
@@ -335,6 +389,22 @@ function ResultsContent() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {saved && <span className="text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-200">✓ Tersimpan</span>}
+                    {canAnalyze && (
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={analyzing}
+                        className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
+                      >
+                        {analyzing ? (
+                          <>
+                            <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
+                            Menganalisa...
+                          </>
+                        ) : (
+                          <>🤖 Analisa</>
+                        )}
+                      </button>
+                    )}
                     <button
                       onClick={() => handleSave(false)}
                       disabled={saving}
@@ -516,6 +586,28 @@ function ResultsContent() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {selectedOrderId && canAnalyze && (
+            <div className="mt-6">
+              {analyzing && (
+                <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-10 text-center">
+                  <div className="animate-spin h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4" />
+                  <p className="font-semibold text-gray-800">Menganalisa hasil pemeriksaan...</p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    AI sedang menginterpretasi hasil sesuai standar dokter spesialis patologi klinik
+                  </p>
+                </div>
+              )}
+
+              {analysisError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                  {analysisError}
+                </div>
+              )}
+
+              {analysis && <AnalysisResultPanel analysis={analysis} />}
             </div>
           )}
         </div>

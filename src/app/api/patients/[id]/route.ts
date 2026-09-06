@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDbAvailable } from "@/db";
-import { patients, doctors } from "@/db/schema";
+import { patients, labOrders, doctors } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
-import { mockPatients } from "@/lib/mock-data";
+import { mockPatients, mockLabOrders } from "@/lib/mock-data";
 
 export async function GET(
   _request: NextRequest,
@@ -100,6 +100,30 @@ export async function PUT(
     if (body.room !== undefined) updateData.room = body.room || null;
     if (body.diagnosis !== undefined) updateData.diagnosis = body.diagnosis || null;
     mockPatients[idx] = { ...mockPatients[idx], ...updateData };
+
+    const pat = mockPatients[idx];
+    for (const o of mockLabOrders) {
+      if (o.patientId === parseInt(id)) {
+        o.patientName = pat.name;
+        o.patientMrn = pat.medicalRecordNo;
+        o.patientGender = pat.gender;
+        o.patientDob = pat.dateOfBirth;
+        o.patientBloodType = pat.bloodType;
+        o.patientPhone = pat.phone;
+        o.patientAge = pat.age;
+        o.patientRoom = pat.room;
+        if (body.room !== undefined) o.room = body.room || null;
+        if (body.age !== undefined) o.age = body.age;
+        if (body.diagnosis !== undefined) o.diagnosis = body.diagnosis || null;
+        if (body.doctorId !== undefined) {
+          o.doctorId = body.doctorId ? parseInt(body.doctorId) : null;
+          o.doctorName = pat.doctorName;
+          o.doctorSpecialization = pat.doctorSpecialization;
+        }
+        o.updatedAt = new Date();
+      }
+    }
+
     return NextResponse.json({ patient: mockPatients[idx] });
   }
 
@@ -132,6 +156,15 @@ export async function PUT(
 
     if (!patient) {
       return NextResponse.json({ error: "Pasien tidak ditemukan" }, { status: 404 });
+    }
+
+    const orderSync: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.age !== undefined) orderSync.age = body.age;
+    if (body.room !== undefined) orderSync.room = body.room || null;
+    if (body.diagnosis !== undefined) orderSync.diagnosis = body.diagnosis || null;
+    if (body.doctorId !== undefined) orderSync.doctorId = body.doctorId ? parseInt(body.doctorId) : null;
+    if (Object.keys(orderSync).length > 1) {
+      await db.update(labOrders).set(orderSync).where(eq(labOrders.patientId, parseInt(id)));
     }
 
     return NextResponse.json({ patient });
