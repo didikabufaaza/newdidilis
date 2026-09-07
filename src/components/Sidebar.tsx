@@ -145,10 +145,10 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
-  // Group: AI (analisa)
+  // Group: Analisa
   {
     href: "/dashboard/results/analyze",
-    label: "Analisa AI",
+    label: "Analisa Hasil",
     group: "ai",
     aiOnly: true,
     icon: (
@@ -177,7 +177,7 @@ const groupLabels: Record<string, string> = {
   master: "MASTER DATA",
   pengaturan: "PENGATURAN",
   laporan: "LAPORAN",
-  ai: "AI",
+  ai: "ANALISA",
   admin: "ADMINISTRASI",
 };
 
@@ -230,18 +230,8 @@ export default function Sidebar({ user }: SidebarProps) {
   const NavContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-blue-700/50">
-        <div className="bg-white/20 w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-1.47 4.41a2.25 2.25 0 0 1-2.133 1.59H8.603a2.25 2.25 0 0 1-2.133-1.59L5 14.5m14 0H5" />
-          </svg>
-        </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold text-white truncate">LabKlinik</h1>
-            <p className="text-xs text-blue-200 truncate">Lab Information System</p>
-          </div>
-        )}
+      <div className="flex items-center px-4 py-5 border-b border-blue-700/50">
+        <img src="/didilis.png" alt="di-diLIS" className="h-10 w-10 object-contain" />
       </div>
 
       {/* Navigation */}

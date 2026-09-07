@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
 
   const access = await resolveAnalysisAccess(user);
   if (!access.canAnalyze) {
-    return NextResponse.json({ error: "Anda tidak memiliki akses fitur Analisa AI" }, { status: 403 });
+    return NextResponse.json({ error: "Anda tidak memiliki akses fitur Analisa" }, { status: 403 });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;

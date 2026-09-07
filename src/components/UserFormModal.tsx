@@ -211,7 +211,7 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={formData.imgAccess} onChange={(e) => setFormData({ ...formData, imgAccess: e.target.checked })}
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
-                <span className="text-sm font-medium text-gray-700">Akses Analisa AI</span>
+                <span className="text-sm font-medium text-gray-700">Akses Analisa</span>
               </label>
             </div>
           </div>

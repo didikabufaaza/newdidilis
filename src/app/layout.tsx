@@ -3,8 +3,11 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LabKlinik LIS - Sistem Informasi Laboratorium",
+  title: "di-diLIS",
   description: "Sistem Informasi Laboratorium Klinik Terintegrasi",
+  icons: {
+    icon: "/didilis.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

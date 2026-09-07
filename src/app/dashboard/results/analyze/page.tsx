@@ -151,7 +151,7 @@ function AnalyzeContent() {
         backgroundColor: "#ffffff",
       });
       const link = document.createElement("a");
-      link.download = `analisa-ai-${orderHeader?.noLab || orderHeader?.orderNo || selectedOrderId}.png`;
+      link.download = `analisa-hasil-${orderHeader?.noLab || orderHeader?.orderNo || selectedOrderId}.png`;
       link.href = dataUrl;
       link.click();
     } catch {
@@ -178,7 +178,7 @@ function AnalyzeContent() {
           <p className="text-5xl mb-4">🔒</p>
           <h3 className="font-semibold text-gray-900 mb-2 text-lg">Akses Terbatas</h3>
           <p className="text-gray-500 text-sm max-w-md mx-auto">
-            Fitur Analisa AI hanya tersedia untuk Superadmin, Admin, atau akun yang telah mendapatkan
+            Fitur Analisa hanya tersedia untuk Superadmin, Admin, atau akun yang telah mendapatkan
             akses (ceklist) dari Superadmin. Hubungi administrator untuk mengaktifkan akses ini.
           </p>
         </div>
@@ -190,7 +190,7 @@ function AnalyzeContent() {
     <div className="p-6 lg:p-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analisa Hasil Laboratorium (AI)</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Analisa &amp; Interpretasi Hasil Laboratorium</h1>
           <p className="text-gray-500 text-sm mt-1">
             Analisis dan interpretasi lengkap hasil pemeriksaan sesuai standar dokter spesialis patologi klinik
           </p>
@@ -250,11 +250,11 @@ function AnalyzeContent() {
         <div className="lg:col-span-3">
           {!selectedOrderId ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-              <p className="text-5xl mb-4">🤖</p>
+              <p className="text-5xl mb-4">📋</p>
               <h3 className="font-semibold text-gray-900 mb-1 text-lg">Pilih Order Pemeriksaan</h3>
               <p className="text-gray-500 text-sm max-w-md mx-auto">
                 Pilih order dari daftar di sebelah kiri untuk menganalisa dan menginterpretasi hasil
-                pemeriksaan laboratorium dengan AI.
+                pemeriksaan laboratorium secara otomatis.
               </p>
             </div>
           ) : loadingItems ? (
@@ -316,7 +316,7 @@ function AnalyzeContent() {
                             Menganalisa...
                           </>
                         ) : (
-                          <>🤖 Analisa Hasil Sekarang</>
+                          <>Analisa Hasil Sekarang</>
                         )}
                       </button>
                     </div>
@@ -380,7 +380,7 @@ function AnalyzeContent() {
                   <div className="animate-spin h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4" />
                   <p className="font-semibold text-gray-800">Menganalisa hasil pemeriksaan...</p>
                   <p className="text-gray-500 text-sm mt-1">
-                    AI sedang menginterpretasi hasil sesuai standar dokter spesialis patologi klinik
+                    Sistem sedang menginterpretasi hasil sesuai standar dokter spesialis patologi klinik
                   </p>
                 </div>
               )}

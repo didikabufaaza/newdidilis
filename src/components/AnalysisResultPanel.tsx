@@ -80,11 +80,11 @@ export default function AnalysisResultPanel({ analysis }: { analysis: AnalysisDa
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-blue-600">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">🤖</div>
+<div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">🔬</div>
           <div>
-            <h3 className="text-white font-bold">Hasil Analisa & Interpretasi AI (Patologi Klinik)</h3>
+            <h3 className="text-white font-bold">Hasil Analisa &amp; Interpretasi (Patologi Klinik)</h3>
             <p className="text-xs text-indigo-100">
-              Dihasilkan otomatis oleh sistem berbasis AI — hanya sebagai alat bantu, bukan pengganti penilaian dokter.
+              Dihasilkan otomatis oleh sistem — hanya sebagai alat bantu, bukan pengganti penilaian dokter.
             </p>
           </div>
         </div>

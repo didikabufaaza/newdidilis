@@ -175,7 +175,7 @@ export default function UsersPage() {
                   <th className="text-left py-3 px-4 text-gray-500 font-medium">Status</th>
                   <th className="text-left py-3 px-4 text-gray-500 font-medium">Persetujuan</th>
                   <th className="text-left py-3 px-4 text-gray-500 font-medium">MasaAktif</th>
-                  <th className="text-center py-3 px-4 text-gray-500 font-medium">Analisa AI</th>
+                  <th className="text-center py-3 px-4 text-gray-500 font-medium">Akses Analisa</th>
                   <th className="text-left py-3 px-4 text-gray-500 font-medium">Password</th>
                   <th className="text-left py-3 px-4 text-gray-500 font-medium">Aksi</th>
                 </tr>

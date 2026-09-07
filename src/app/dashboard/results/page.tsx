@@ -144,6 +144,13 @@ function ResultsContent() {
     return "";
   };
 
+  const getChoiceOptions = (item: OrderItem): string[] | null => {
+    const low = (item.referenceText || "").toLowerCase();
+    if (/reaktif/.test(low)) return ["Reaktif", "Non Reaktif"];
+    if (/negatif|positif/.test(low)) return ["Negatif", "Positif"];
+    return null;
+  };
+
   const updateResult = (itemId: number, field: string, value: string, item: OrderItem) => {
     setResults((prev) => {
       const updated = { ...prev[itemId], [field]: value };
@@ -401,7 +408,7 @@ function ResultsContent() {
                             Menganalisa...
                           </>
                         ) : (
-                          <>🤖 Analisa</>
+                          <>Analisa</>
                         )}
                       </button>
                     )}
@@ -524,19 +531,40 @@ function ResultsContent() {
                             </p>
                           </td>
                           <td className="py-3 px-4">
-                            <input
-                              type="text"
-                              value={r.result}
-                              onChange={(e) => updateResult(item.id, "result", e.target.value, item)}
-                              className={`w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium ${
-                                r.flag === "H"
-                                  ? "border-red-300 bg-red-50/70 text-red-900 font-bold"
-                                  : r.flag === "L"
-                                  ? "border-blue-300 bg-blue-50/70 text-blue-900 font-bold"
-                                  : "border-gray-300 bg-white"
-                              }`}
-                              placeholder="Masukkan hasil..."
-                            />
+                            {(() => {
+                              const options = getChoiceOptions(item);
+                              if (options) {
+                                return (
+                                  <select
+                                    value={r.result}
+                                    onChange={(e) => updateResult(item.id, "result", e.target.value, item)}
+                                    className={`w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium bg-white ${
+                                      r.result ? "border-gray-300" : "border-gray-300 text-gray-400"
+                                    }`}
+                                  >
+                                    <option value="">-- Pilih --</option>
+                                    {options.map((opt) => (
+                                      <option key={opt} value={opt} className="text-gray-900">{opt}</option>
+                                    ))}
+                                  </select>
+                                );
+                              }
+                              return (
+                                <input
+                                  type="text"
+                                  value={r.result}
+                                  onChange={(e) => updateResult(item.id, "result", e.target.value, item)}
+                                  className={`w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium ${
+                                    r.flag === "H"
+                                      ? "border-red-300 bg-red-50/70 text-red-900 font-bold"
+                                      : r.flag === "L"
+                                      ? "border-blue-300 bg-blue-50/70 text-blue-900 font-bold"
+                                      : "border-gray-300 bg-white"
+                                  }`}
+                                  placeholder="Masukkan hasil..."
+                                />
+                              );
+                            })()}
                           </td>
                           <td className="py-3 px-4 text-center text-gray-500 text-xs">{item.unit || "-"}</td>
                           <td className="py-3 px-4 text-center text-gray-500 text-xs font-mono">
@@ -596,7 +624,7 @@ function ResultsContent() {
                   <div className="animate-spin h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4" />
                   <p className="font-semibold text-gray-800">Menganalisa hasil pemeriksaan...</p>
                   <p className="text-gray-500 text-sm mt-1">
-                    AI sedang menginterpretasi hasil sesuai standar dokter spesialis patologi klinik
+                    Sistem sedang menginterpretasi hasil sesuai standar dokter spesialis patologi klinik
                   </p>
                 </div>
               )}
