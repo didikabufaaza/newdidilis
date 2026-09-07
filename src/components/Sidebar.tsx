@@ -230,8 +230,26 @@ export default function Sidebar({ user }: SidebarProps) {
   const NavContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center px-4 py-5 border-b border-blue-700/50">
-        <img src="/didilis.png" alt="di-diLIS" className="h-10 w-10 object-contain" />
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-blue-700/50">
+        <div className="bg-white rounded-lg p-1 shadow-md flex-shrink-0">
+          <img
+            src="/didilis.png"
+            alt="di-diLIS — didik-digital Laboratory Information System"
+            className="h-9 w-[90px] object-contain"
+          />
+        </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="text-white font-extrabold text-[15px] leading-tight tracking-tight">
+              di-diLIS
+            </p>
+            <p className="text-[8.5px] text-blue-200/90 leading-tight">
+              didik-digital Laboratory
+              <br />
+              Information System
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
