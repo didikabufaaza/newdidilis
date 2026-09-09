@@ -197,13 +197,17 @@ function ResultsContent() {
 
     const data = Object.entries(results)
       .filter(([, v]) => v.result)
-      .map(([id, v]) => ({
-        itemId: parseInt(id),
-        result: v.result,
-        resultNumeric: isNaN(parseFloat(v.result)) ? undefined : v.result,
-        flag: v.flag || undefined,
-        notes: v.notes || undefined,
-      }));
+      .map(([id, v]) => {
+        const val = String(v.result || "").trim();
+        const isNumeric = val !== "" && Number.isFinite(Number(val));
+        return {
+          itemId: parseInt(id),
+          result: v.result,
+          resultNumeric: isNumeric ? v.result : undefined,
+          flag: v.flag || undefined,
+          notes: v.notes || undefined,
+        };
+      });
 
     const token = localStorage.getItem("lis_token");
     const viewAsUserId = localStorage.getItem("viewAsUserId");
@@ -211,17 +215,34 @@ function ResultsContent() {
     if (token) headers["Authorization"] = `Bearer ${token}`;
     if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
 
-    await fetch(`/api/orders/${selectedOrderId}/results`, {
+    const res = await fetch(`/api/orders/${selectedOrderId}/results`, {
       method: "PUT",
       headers,
       body: JSON.stringify({ results: data }),
     });
 
-    await fetch(`/api/orders/${selectedOrderId}`, {
+    if (!res.ok) {
+      let msg = "Gagal menyimpan hasil. Periksa kembali nilai yang dimasukkan.";
+      try {
+        const err = await res.json();
+        if (err.error) msg = err.error;
+      } catch {}
+      setSaving(false);
+      alert(msg);
+      return;
+    }
+
+    const statusRes = await fetch(`/api/orders/${selectedOrderId}`, {
       method: "PUT",
       headers,
       body: JSON.stringify({ status: "completed" }),
     });
+
+    if (!statusRes.ok) {
+      setSaving(false);
+      alert("Hasil tersimpan, tetapi gagal mengubah status order");
+      return;
+    }
 
     setSaving(false);
 

@@ -58,25 +58,34 @@ export async function PUT(
   }
 
   try {
-    for (const r of results) {
-      await db
-        .update(orderItems)
-        .set({
-          result: r.result,
-          resultNumeric: r.resultNumeric || null,
-          flag: r.flag || null,
-          notes: r.notes || null,
-          resultStatus: "entered",
-          enteredBy: user.id,
-          enteredAt: new Date(),
-        })
-        .where(eq(orderItems.id, r.itemId));
-    }
+    const numericValue = (v: string | undefined | null): string | null => {
+      if (v === undefined || v === null) return null;
+      const t = String(v).trim();
+      if (t === "" || !Number.isFinite(Number(t))) return null;
+      return t;
+    };
 
-    await db
-      .update(labOrders)
-      .set({ status: "in_progress", updatedAt: new Date() })
-      .where(eq(labOrders.id, orderId));
+    await db.transaction(async (tx) => {
+      for (const r of results) {
+        await tx
+          .update(orderItems)
+          .set({
+            result: r.result,
+            resultNumeric: numericValue(r.resultNumeric),
+            flag: r.flag || null,
+            notes: r.notes || null,
+            resultStatus: "entered",
+            enteredBy: user.id,
+            enteredAt: new Date(),
+          })
+          .where(eq(orderItems.id, r.itemId));
+      }
+
+      await tx
+        .update(labOrders)
+        .set({ status: "in_progress", updatedAt: new Date() })
+        .where(eq(labOrders.id, orderId));
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
