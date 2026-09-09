@@ -75,12 +75,19 @@ function LabResultDocument({
   items: OrderItem[];
   letterhead: LetterheadSettings | null;
 }) {
-  // Group items by category
+  // Group items by category (preserve selection order, put routine blood at top)
   const groupedItems: Record<string, OrderItem[]> = {};
-  items.forEach((item) => {
-    const cat = item.categoryName || "Pemeriksaan Lainnya";
-    if (!groupedItems[cat]) groupedItems[cat] = [];
-    groupedItems[cat].push(item);
+  [...items]
+    .sort((a, b) => a.id - b.id)
+    .forEach((item) => {
+      const cat = item.categoryName || "Pemeriksaan Lainnya";
+      if (!groupedItems[cat]) groupedItems[cat] = [];
+      groupedItems[cat].push(item);
+    });
+
+  const categoryOrder = Object.keys(groupedItems).sort((a, b) => {
+    const isRoutine = (c: string) => /hematologi|darah\s*rutin/i.test(c);
+    return (isRoutine(a) ? 0 : 1) - (isRoutine(b) ? 0 : 1);
   });
 
   const displayAge = order.age || order.patientAge || "-";
@@ -218,58 +225,61 @@ function LabResultDocument({
       </table>
 
       {/* HASIL PEMERIKSAAN PER KATEGORI */}
-      {Object.entries(groupedItems).map(([category, catItems]) => (
-        <div key={category} style={{ marginBottom: "12px" }}>
-          <div style={{ fontSize: "12px", fontWeight: "bold", background: "#e2e8f0", padding: "6px 10px", borderLeft: "3px solid #2563eb", marginBottom: "5px", textTransform: "uppercase" }}>
-            {category}
-          </div>
-          <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse", border: "1px solid #cbd5e1" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc" }}>
-                <th style={{ textAlign: "left", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "32%" }}>Parameter Pemeriksaan</th>
-                <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "18%" }}>Hasil</th>
-                <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "12%" }}>Satuan</th>
-                <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "28%" }}>Nilai Rujukan</th>
-                <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "10%" }}>Keterangan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {catItems.map((item, idx) => (
-                <tr key={item.id} style={{ background: idx % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
-                  <td style={{ padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>{item.testName}</td>
-                  <td
-                    style={{
-                      textAlign: "center",
-                      padding: "7px 10px",
-                      borderBottom: "1px solid #e2e8f0",
-                      fontWeight: item.flag ? "bold" : "normal",
-                      color: item.flag === "H" ? "#dc2626" : item.flag === "L" ? "#2563eb" : "#000000",
-                    }}
-                  >
-                    {item.result}
-                  </td>
-                  <td style={{ textAlign: "center", padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>{item.unit || "-"}</td>
-                  <td style={{ textAlign: "center", padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>
-                    {item.referenceText || (item.referenceMin && item.referenceMax ? `${item.referenceMin} - ${item.referenceMax}` : "-")}
-                  </td>
-                  <td
-                    style={{
-                      textAlign: "center",
-                      padding: "7px 10px",
-                      borderBottom: "1px solid #e2e8f0",
-                      fontWeight: "bold",
-                      color: item.flag === "H" ? "#dc2626" : item.flag === "L" ? "#2563eb" : "#000000",
-                      fontSize: "13px",
-                    }}
-                  >
-                    {item.flag === "H" ? "↑ High" : item.flag === "L" ? "↓ Low" : "Normal"}
-                  </td>
+      {categoryOrder.map((category) => {
+        const catItems = groupedItems[category];
+        return (
+          <div key={category} style={{ marginBottom: "12px" }}>
+            <div style={{ fontSize: "12px", fontWeight: "bold", background: "#e2e8f0", padding: "6px 10px", borderLeft: "3px solid #2563eb", marginBottom: "5px", textTransform: "uppercase" }}>
+              {category}
+            </div>
+            <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse", border: "1px solid #cbd5e1" }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ textAlign: "left", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "32%" }}>Parameter Pemeriksaan</th>
+                  <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "18%" }}>Hasil</th>
+                  <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "12%" }}>Satuan</th>
+                  <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "28%" }}>Nilai Rujukan</th>
+                  <th style={{ textAlign: "center", padding: "8px 10px", borderBottom: "1px solid #cbd5e1", fontWeight: 600, width: "10%" }}>Keterangan</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+              </thead>
+              <tbody>
+                {catItems.map((item, idx) => (
+                  <tr key={item.id} style={{ background: idx % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
+                    <td style={{ padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>{item.testName}</td>
+                    <td
+                      style={{
+                        textAlign: "center",
+                        padding: "7px 10px",
+                        borderBottom: "1px solid #e2e8f0",
+                        fontWeight: item.flag ? "bold" : "normal",
+                        color: item.flag === "H" ? "#dc2626" : item.flag === "L" ? "#2563eb" : "#000000",
+                      }}
+                    >
+                      {item.result}
+                    </td>
+                    <td style={{ textAlign: "center", padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>{item.unit || "-"}</td>
+                    <td style={{ textAlign: "center", padding: "7px 10px", borderBottom: "1px solid #e2e8f0" }}>
+                      {item.referenceText || (item.referenceMin && item.referenceMax ? `${item.referenceMin} - ${item.referenceMax}` : "-")}
+                    </td>
+                    <td
+                      style={{
+                        textAlign: "center",
+                        padding: "7px 10px",
+                        borderBottom: "1px solid #e2e8f0",
+                        fontWeight: "bold",
+                        color: item.flag === "H" ? "#dc2626" : item.flag === "L" ? "#2563eb" : "#000000",
+                        fontSize: "13px",
+                      }}
+                    >
+                      {item.flag === "H" ? "↑ High" : item.flag === "L" ? "↓ Low" : "Normal"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
 
       {/* TANDA TANGAN */}
       <div style={{ marginTop: "40px", display: "flex", justifyContent: "flex-end" }}>

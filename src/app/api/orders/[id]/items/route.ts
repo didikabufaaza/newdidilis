@@ -70,6 +70,8 @@ export async function POST(
       .from(testCatalog)
       .where(sql`${testCatalog.id} IN (${sql.join(newTestIds.map((id: number) => sql`${id}`), sql`, `)})`);
 
+    tests.sort((a, b) => newTestIds.indexOf(a.id) - newTestIds.indexOf(b.id));
+
     const items = tests.map((t) => ({
       orderId,
       testId: t.id,

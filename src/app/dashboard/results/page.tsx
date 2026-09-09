@@ -533,36 +533,30 @@ function ResultsContent() {
                           <td className="py-3 px-4">
                             {(() => {
                               const options = getChoiceOptions(item);
-                              if (options) {
-                                return (
-                                  <select
+                              return (
+                                <>
+                                  <input
+                                    type="text"
+                                    list={options ? `result-options-${item.id}` : undefined}
                                     value={r.result}
                                     onChange={(e) => updateResult(item.id, "result", e.target.value, item)}
-                                    className={`w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium bg-white ${
-                                      r.result ? "border-gray-300" : "border-gray-300 text-gray-400"
+                                    className={`w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium ${
+                                      r.flag === "H"
+                                        ? "border-red-300 bg-red-50/70 text-red-900 font-bold"
+                                        : r.flag === "L"
+                                        ? "border-blue-300 bg-blue-50/70 text-blue-900 font-bold"
+                                        : "border-gray-300 bg-white"
                                     }`}
-                                  >
-                                    <option value="">-- Pilih --</option>
-                                    {options.map((opt) => (
-                                      <option key={opt} value={opt} className="text-gray-900">{opt}</option>
-                                    ))}
-                                  </select>
-                                );
-                              }
-                              return (
-                                <input
-                                  type="text"
-                                  value={r.result}
-                                  onChange={(e) => updateResult(item.id, "result", e.target.value, item)}
-                                  className={`w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium ${
-                                    r.flag === "H"
-                                      ? "border-red-300 bg-red-50/70 text-red-900 font-bold"
-                                      : r.flag === "L"
-                                      ? "border-blue-300 bg-blue-50/70 text-blue-900 font-bold"
-                                      : "border-gray-300 bg-white"
-                                  }`}
-                                  placeholder="Masukkan hasil..."
-                                />
+                                    placeholder={options ? "Pilih atau ketik manual..." : "Masukkan hasil..."}
+                                  />
+                                  {options && (
+                                    <datalist id={`result-options-${item.id}`}>
+                                      {options.map((opt) => (
+                                        <option key={opt} value={opt} />
+                                      ))}
+                                    </datalist>
+                                  )}
+                                </>
                               );
                             })()}
                           </td>

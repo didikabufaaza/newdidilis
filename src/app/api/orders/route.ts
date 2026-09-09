@@ -264,6 +264,8 @@ export async function POST(request: NextRequest) {
         )})`
       );
 
+    tests.sort((a, b) => testIds.indexOf(a.id) - testIds.indexOf(b.id));
+
     const totalPrice = tests.reduce(
       (sum, t) => sum + parseFloat(t.price || "0"),
       0

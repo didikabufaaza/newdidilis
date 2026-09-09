@@ -93,7 +93,8 @@ export async function GET(
       .from(orderItems)
       .innerJoin(testCatalog, eq(orderItems.testId, testCatalog.id))
       .leftJoin(testCategories, eq(testCatalog.categoryId, testCategories.id))
-      .where(eq(orderItems.orderId, orderId));
+      .where(eq(orderItems.orderId, orderId))
+      .orderBy(orderItems.id);
 
     return NextResponse.json({ order, items });
   } catch (error) {
