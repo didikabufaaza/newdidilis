@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiGet } from "@/lib/api-client";
 
 interface ParameterRow {
   id: number;
@@ -80,8 +81,8 @@ export default function ParameterReportPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/tests/categories").then((r) => r.json()),
-      fetch("/api/tests?limit=500").then((r) => r.json()),
+      apiGet<{ categories?: any[] }>("/api/tests/categories", 60_000),
+      apiGet<{ tests?: any[] }>("/api/tests?limit=500", 60_000),
     ]).then(([c, t]) => {
       setCategories(c.categories || []);
       setTests(t.tests || []);
@@ -99,14 +100,7 @@ export default function ParameterReportPage() {
     if (resultStatus) params.set("resultStatus", resultStatus);
 
     try {
-      const token = localStorage.getItem("lis_token");
-      const viewAsUserId = localStorage.getItem("viewAsUserId");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
-      const res = await fetch(`/api/reports/parameters?${params}`, { headers });
-      const result = await res.json();
+      const result = await apiGet<{ data?: any[] }>(`/api/reports/parameters?${params}`, 10_000);
       setData(result.data || []);
     } catch {
       setData([]);

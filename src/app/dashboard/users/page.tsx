@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import UserFormModal from "@/components/UserFormModal";
 import SubAccountModal from "@/components/SubAccountModal";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface User {
   id: number;
@@ -45,11 +46,7 @@ export default function UsersPage() {
   async function fetchUsers() {
     setLoading(true);
     try {
-      const token = localStorage.getItem("lis_token");
-      const res = await fetch("/api/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await apiGet<{ users?: User[] }>("/api/users", 30_000);
       setUsers(data.users || []);
     } catch {
       setUsers([]);
@@ -68,6 +65,7 @@ export default function UsersPage() {
       });
 
       if (res.ok) {
+        clearApiCache();
         fetchUsers();
       } else {
         alert("Gagal menghapus user");
@@ -92,6 +90,7 @@ export default function UsersPage() {
       });
 
       if (res.ok) {
+        clearApiCache();
         fetchUsers();
       } else {
         alert("Gagal menyetujui user");
@@ -293,7 +292,7 @@ export default function UsersPage() {
       <UserFormModal
         isOpen={showFormModal}
         onClose={() => { setShowFormModal(false); setEditUser(null); }}
-        onSave={() => { fetchUsers(); }}
+        onSave={() => { clearApiCache(); fetchUsers(); }}
         user={editUser ? { ...editUser, phone: editUser.phone || "" } : null}
       />
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface Test {
   id: number;
@@ -61,12 +62,10 @@ export default function TestsPage() {
   const fetchTests = useCallback(async () => {
     setLoading(true);
     try {
-      const [testsRes, catsRes] = await Promise.all([
-        fetch("/api/tests?all=true"),
-        fetch("/api/tests/categories"),
+      const [testsData, catsData] = await Promise.all([
+        apiGet<{ tests?: Test[] }>("/api/tests?all=true", 60_000),
+        apiGet<{ categories?: Category[] }>("/api/tests/categories", 60_000),
       ]);
-      const testsData = await testsRes.json();
-      const catsData = await catsRes.json();
       setTests(testsData.tests || []);
       setCategories(catsData.categories || []);
     } catch {
@@ -161,6 +160,7 @@ export default function TestsPage() {
       });
 
       if (res.ok) {
+        clearApiCache();
         setShowModal(false);
         fetchTests();
       } else {
@@ -186,6 +186,7 @@ export default function TestsPage() {
 
       const res = await fetch(`/api/tests/${id}`, { method: "DELETE", headers });
       if (res.ok) {
+        clearApiCache();
         fetchTests();
       } else {
         const data = await res.json();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDbAvailable } from "@/db";
 import { testPackages, testPackageItems, testCatalog, testCategories } from "@/db/schema";
-import { eq, sql, ilike, or } from "drizzle-orm";
+import { eq, sql, ilike, or, inArray } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
 import { mockTestPackages } from "@/lib/mock-data";
 
@@ -36,28 +36,39 @@ export async function GET(request: NextRequest) {
       .where(conditions)
       .orderBy(sql`${testPackages.name}`);
 
-    const result = [];
-    for (const pkg of packages) {
-      const items = await db
-        .select({
-          id: testPackageItems.id,
-          testId: testPackageItems.testId,
-          testCode: testCatalog.code,
-          testName: testCatalog.name,
-          categoryName: testCategories.name,
-          unit: testCatalog.unit,
-          referenceMin: testCatalog.referenceMin,
-          referenceMax: testCatalog.referenceMax,
-          referenceText: testCatalog.referenceText,
-          price: testCatalog.price,
-        })
-        .from(testPackageItems)
-        .innerJoin(testCatalog, eq(testPackageItems.testId, testCatalog.id))
-        .leftJoin(testCategories, eq(testCatalog.categoryId, testCategories.id))
-        .where(eq(testPackageItems.packageId, pkg.id));
+    const packageIds = packages.map((p) => p.id);
+    const itemRows = packageIds.length
+      ? await db
+          .select({
+            id: testPackageItems.id,
+            packageId: testPackageItems.packageId,
+            testId: testPackageItems.testId,
+            testCode: testCatalog.code,
+            testName: testCatalog.name,
+            categoryName: testCategories.name,
+            unit: testCatalog.unit,
+            referenceMin: testCatalog.referenceMin,
+            referenceMax: testCatalog.referenceMax,
+            referenceText: testCatalog.referenceText,
+            price: testCatalog.price,
+          })
+          .from(testPackageItems)
+          .innerJoin(testCatalog, eq(testPackageItems.testId, testCatalog.id))
+          .leftJoin(testCategories, eq(testCatalog.categoryId, testCategories.id))
+          .where(inArray(testPackageItems.packageId, packageIds))
+      : [];
 
-      result.push({ ...pkg, items });
+    const itemsByPackage = new Map<number, (typeof itemRows)[number][]>();
+    for (const row of itemRows) {
+      const arr = itemsByPackage.get(row.packageId) || [];
+      arr.push(row);
+      itemsByPackage.set(row.packageId, arr);
     }
+
+    const result = packages.map((pkg) => ({
+      ...pkg,
+      items: itemsByPackage.get(pkg.id) || [],
+    }));
 
     return NextResponse.json({ packages: result });
   } catch (error) {

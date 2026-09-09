@@ -70,35 +70,35 @@ export async function GET() {
   try {
     const { db } = await import("@/db");
     const { labOrders, patients, orderItems } = await import("@/db/schema");
-    const { eq, sql, count, gte, and } = await import("drizzle-orm");
+    const { eq, sql, count, and } = await import("drizzle-orm");
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const viewAsCondition = viewAsUserId ? eq(labOrders.createdBy, viewAsUserId) : undefined;
     const patientViewAsCondition = viewAsUserId ? eq(patients.createdBy, viewAsUserId) : undefined;
+    const aggWhere = viewAsUserId ? sql`created_by = ${viewAsUserId}` : sql`TRUE`;
 
     const [
       totalPatients,
-      totalOrders,
-      todayOrders,
-      pendingOrders,
-      inProgressOrders,
-      completedOrders,
-      statusCounts,
+      aggRows,
+      statusCountRows,
       recentOrders,
       pendingResults,
     ] = await Promise.all([
       viewAsUserId
         ? db.select({ count: count() }).from(patients).where(patientViewAsCondition)
         : db.select({ count: count() }).from(patients),
-      viewAsUserId
-        ? db.select({ count: count() }).from(labOrders).where(viewAsCondition)
-        : db.select({ count: count() }).from(labOrders),
-      db.select({ count: count() }).from(labOrders).where(viewAsUserId ? and(gte(labOrders.createdAt, today), viewAsCondition) : gte(labOrders.createdAt, today)),
-      db.select({ count: count() }).from(labOrders).where(viewAsUserId ? and(sql`${labOrders.status} IN ('registered', 'sample_collected')`, viewAsCondition) : sql`${labOrders.status} IN ('registered', 'sample_collected')`),
-      db.select({ count: count() }).from(labOrders).where(viewAsUserId ? and(eq(labOrders.status, "in_progress"), viewAsCondition) : eq(labOrders.status, "in_progress")),
-      db.select({ count: count() }).from(labOrders).where(viewAsUserId ? and(sql`${labOrders.status} IN ('completed', 'validated', 'reported')`, viewAsCondition) : sql`${labOrders.status} IN ('completed', 'validated', 'reported')`),
+      db.execute(sql`
+        SELECT
+          count(*)::int AS total_orders,
+          count(*) FILTER (WHERE created_at >= ${today})::int AS today_orders,
+          count(*) FILTER (WHERE status IN ('registered', 'sample_collected'))::int AS pending_orders,
+          count(*) FILTER (WHERE status = 'in_progress')::int AS in_progress_orders,
+          count(*) FILTER (WHERE status IN ('completed', 'validated', 'reported'))::int AS completed_orders
+        FROM lab_orders
+        WHERE ${aggWhere}
+      `),
       viewAsUserId
         ? db.select({ status: labOrders.status, count: count() }).from(labOrders).where(viewAsCondition).groupBy(labOrders.status)
         : db.select({ status: labOrders.status, count: count() }).from(labOrders).groupBy(labOrders.status),
@@ -113,17 +113,19 @@ export async function GET() {
         : db.select({ count: count() }).from(orderItems).where(eq(orderItems.resultStatus, "pending")),
     ]);
 
+    const agg = aggRows.rows[0];
+
     return NextResponse.json({
       stats: {
         totalPatients: totalPatients[0].count,
-        totalOrders: totalOrders[0].count,
-        todayOrders: todayOrders[0].count,
-        pendingOrders: pendingOrders[0].count,
-        inProgressOrders: inProgressOrders[0].count,
-        completedOrders: completedOrders[0].count,
+        totalOrders: agg.total_orders,
+        todayOrders: agg.today_orders,
+        pendingOrders: agg.pending_orders,
+        inProgressOrders: agg.in_progress_orders,
+        completedOrders: agg.completed_orders,
         pendingResults: pendingResults[0].count,
       },
-      statusCounts: statusCounts.reduce((acc, s) => ({ ...acc, [s.status]: s.count }), {} as Record<string, number>),
+      statusCounts: statusCountRows.reduce((acc, s) => ({ ...acc, [s.status]: s.count }), {} as Record<string, number>),
       recentOrders,
     });
   } catch (err) {

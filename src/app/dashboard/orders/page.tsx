@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface Order {
   id: number;
@@ -43,9 +44,7 @@ export default function OrdersPage() {
     try {
       const params = new URLSearchParams({ search, page: String(page), limit: "15" });
       if (statusFilter) params.set("status", statusFilter);
-      const res = await fetch(`/api/orders?${params}`);
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
+      const data = await apiGet<{ orders?: Order[]; totalPages?: number; total?: number }>(`/api/orders?${params}`);
       setOrders(data.orders || []);
       setTotalPages(data.totalPages || 1);
       setTotal(data.total || 0);
@@ -69,6 +68,7 @@ export default function OrdersPage() {
     try {
       const res = await fetch(`/api/orders/${oid}`, { method: "DELETE" });
       if (res.ok) {
+        clearApiCache();
         fetchOrders();
       } else {
         alert("Gagal menghapus order");

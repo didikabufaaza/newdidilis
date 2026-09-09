@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AnalysisResultPanel from "@/components/AnalysisResultPanel";
 import { getCanAnalyzeClient } from "@/lib/client-analysis";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface Order {
   id: number;
@@ -69,14 +70,7 @@ function ResultsContent() {
 
   useEffect(() => {
     setCanAnalyze(getCanAnalyzeClient());
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
-    fetch("/api/orders?limit=100", { headers })
-      .then((r) => r.json())
+    apiGet<{ orders: Order[] }>("/api/orders?limit=100", 10_000)
       .then((data) => {
         setOrders(data.orders || []);
         setLoading(false);
@@ -89,14 +83,8 @@ function ResultsContent() {
     setLoadingItems(true);
     setAnalysis(null);
     setAnalysisError("");
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
 
-    fetch(`/api/orders/${selectedOrderId}`, { headers })
-      .then((r) => r.json())
+    apiGet<{ order: any; items: OrderItem[] }>(`/api/orders/${selectedOrderId}`, 10_000)
       .then((data) => {
         setItems(data.items || []);
         setOrderHeader({
@@ -124,8 +112,7 @@ function ResultsContent() {
 
         if (data.order?.patientMrn) {
           setLoadingPrevious(true);
-          fetch(`/api/results/previous?mrn=${data.order.patientMrn}&excludeOrderId=${selectedOrderId}`, { headers })
-            .then((r) => r.json())
+          apiGet<{ previousResults: any[] }>(`/api/results/previous?mrn=${data.order.patientMrn}&excludeOrderId=${selectedOrderId}`, 10_000)
             .then((prev) => {
               setPreviousResults(prev.previousResults || []);
               setLoadingPrevious(false);
@@ -176,6 +163,7 @@ function ResultsContent() {
       });
 
       if (res.ok) {
+        clearApiCache();
         setItems((prev) => prev.filter((i) => i.id !== itemId));
         setResults((prev) => {
           const next = { ...prev };
@@ -244,6 +232,7 @@ function ResultsContent() {
       return;
     }
 
+    clearApiCache();
     setSaving(false);
 
     if (andPrint) {

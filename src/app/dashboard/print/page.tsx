@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { apiGet } from "@/lib/api-client";
 
 interface LetterheadSettings {
   pemda: string | null;
@@ -321,15 +322,9 @@ function PrintContent() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
     Promise.all([
-      fetch("/api/orders?limit=100", { headers }).then((r) => r.json()),
-      fetch("/api/settings/letterhead", { headers }).then((r) => r.json()),
+      apiGet<{ orders: Order[] }>("/api/orders?limit=100", 10_000),
+      apiGet<{ settings: LetterheadSettings | null }>("/api/settings/letterhead", 60_000),
     ]).then(([ordersData, lh]) => {
       setOrders(ordersData.orders || []);
       setLetterhead(lh.settings);
@@ -344,13 +339,7 @@ function PrintContent() {
   const loadOrderDetail = async (orderId: number) => {
     setSelectedOrderId(orderId);
     setLoadingOrder(true);
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-    const res = await fetch(`/api/orders/${orderId}`, { headers });
-    const data = await res.json();
+    const data = await apiGet<{ order: any; items: OrderItem[] }>(`/api/orders/${orderId}`, 10_000);
     setOrder(data.order);
     setItems(data.items.filter((i: OrderItem) => i.result));
     setLoadingOrder(false);

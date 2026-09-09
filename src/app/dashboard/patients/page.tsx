@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface Patient {
   id: number;
@@ -93,15 +94,8 @@ export default function PatientsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ search, page: String(page), limit: "15" });
-      const token = localStorage.getItem("lis_token");
-      const viewAsUserId = localStorage.getItem("viewAsUserId");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
 
-      const res = await fetch(`/api/patients?${params}`, { headers });
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
+      const data = await apiGet<{ patients?: Patient[]; totalPages?: number; total?: number }>(`/api/patients?${params}`);
       setPatients(data.patients || []);
       setTotalPages(data.totalPages || 1);
       setTotal(data.total || 0);
@@ -116,14 +110,7 @@ export default function PatientsPage() {
   }, [fetchPatients]);
 
   useEffect(() => {
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
-    fetch("/api/doctors", { headers })
-      .then((r) => r.json())
+    apiGet<{ doctors?: Doctor[] }>("/api/doctors", 60_000)
       .then((d) => setDoctors(d.doctors || []))
       .catch(() => setDoctors([]));
   }, []);
@@ -239,6 +226,7 @@ export default function PatientsPage() {
       });
 
       if (res.ok) {
+        clearApiCache();
         setShowModal(false);
 
         // Jika buat pasien baru, langsung masuk ke menu order pemeriksaan lab
@@ -268,6 +256,7 @@ export default function PatientsPage() {
     try {
       const res = await fetch(`/api/patients/${id}`, { method: "DELETE" });
       if (res.ok) {
+        clearApiCache();
         fetchPatients();
       } else {
         alert("Gagal menghapus pasien. Mungkin masih ada data order terkait.");

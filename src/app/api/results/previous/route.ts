@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   try {
     const { db } = await import("@/db");
     const { labOrders, orderItems, testCatalog, patients } = await import("@/db/schema");
-    const { eq, and, sql } = await import("drizzle-orm");
+    const { eq, and, sql, inArray } = await import("drizzle-orm");
 
     const patientOrders = await db
       .select({ id: labOrders.id, orderNo: labOrders.orderNo, createdAt: labOrders.createdAt })
@@ -59,33 +59,41 @@ export async function GET(request: NextRequest) {
       .orderBy(sql`${labOrders.createdAt} DESC`)
       .limit(5);
 
-    const results = [];
-    for (const order of patientOrders) {
-      const items = await db
-        .select({
-          testCode: testCatalog.code,
-          testName: testCatalog.name,
-          result: orderItems.result,
-          unit: orderItems.unit,
-          referenceMin: orderItems.referenceMin,
-          referenceMax: orderItems.referenceMax,
-          flag: orderItems.flag,
-        })
-        .from(orderItems)
-        .innerJoin(testCatalog, eq(orderItems.testId, testCatalog.id))
-        .where(
-          and(
-            eq(orderItems.orderId, order.id),
-            sql`${orderItems.result} IS NOT NULL AND ${orderItems.result} != ''`
+    const orderIds = patientOrders.map((o) => o.id);
+    const itemRows = orderIds.length
+      ? await db
+          .select({
+            orderId: orderItems.orderId,
+            testCode: testCatalog.code,
+            testName: testCatalog.name,
+            result: orderItems.result,
+            unit: orderItems.unit,
+            referenceMin: orderItems.referenceMin,
+            referenceMax: orderItems.referenceMax,
+            flag: orderItems.flag,
+          })
+          .from(orderItems)
+          .innerJoin(testCatalog, eq(orderItems.testId, testCatalog.id))
+          .where(
+            and(
+              inArray(orderItems.orderId, orderIds),
+              sql`${orderItems.result} IS NOT NULL AND ${orderItems.result} != ''`
+            )
           )
-        );
+      : [];
 
-      results.push({
-        orderNo: order.orderNo,
-        orderDate: order.createdAt,
-        items,
-      });
+    const itemsByOrder = new Map<number, (typeof itemRows)[number][]>();
+    for (const row of itemRows) {
+      const arr = itemsByOrder.get(row.orderId) || [];
+      arr.push(row);
+      itemsByOrder.set(row.orderId, arr);
     }
+
+    const results = patientOrders.map((order) => ({
+      orderNo: order.orderNo,
+      orderDate: order.createdAt,
+      items: itemsByOrder.get(order.id) || [],
+    }));
 
     return NextResponse.json({ previousResults: results });
   } catch (error) {

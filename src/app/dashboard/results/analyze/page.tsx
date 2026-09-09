@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import AnalysisResultPanel from "@/components/AnalysisResultPanel";
 import { getCanAnalyzeClient } from "@/lib/client-analysis";
+import { apiGet } from "@/lib/api-client";
 import Link from "next/link";
 
 interface Order {
@@ -64,14 +65,7 @@ function AnalyzeContent() {
 
   useEffect(() => {
     setCanAnalyze(getCanAnalyzeClient());
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
-    fetch("/api/orders?limit=100", { headers })
-      .then((r) => r.json())
+    apiGet<{ orders?: Order[] }>("/api/orders?limit=100", 10_000)
       .then((data) => {
         setOrders(data.orders || []);
         setLoading(false);
@@ -84,14 +78,8 @@ function AnalyzeContent() {
     setLoadingItems(true);
     setAnalysis(null);
     setAnalysisError("");
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
 
-    fetch(`/api/orders/${selectedOrderId}`, { headers })
-      .then((r) => r.json())
+    apiGet<{ order: any; items: OrderItem[] }>(`/api/orders/${selectedOrderId}`, 10_000)
       .then((data) => {
         setItems(data.items || []);
         setOrderHeader({

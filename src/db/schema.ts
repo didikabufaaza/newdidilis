@@ -8,6 +8,7 @@ import {
   numeric,
   boolean,
   pgEnum,
+  index,
 } from "drizzle-orm/pg-core";
 
 // Enums
@@ -68,7 +69,9 @@ export const users = pgTable("users", {
 });
 
 // Patients table
-export const patients = pgTable("patients", {
+export const patients = pgTable(
+  "patients",
+  {
   id: serial("id").primaryKey(),
   medicalRecordNo: varchar("medical_record_no", { length: 50 })
     .notNull()
@@ -91,7 +94,12 @@ export const patients = pgTable("patients", {
   createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+},
+  (table) => [
+    index("idx_patients_doctor_id").on(table.doctorId),
+    index("idx_patients_created_by").on(table.createdBy),
+  ]
+);
 
 // Doctors (referring physicians)
 export const doctors = pgTable("doctors", {
@@ -115,7 +123,9 @@ export const testCategories = pgTable("test_categories", {
 });
 
 // Test catalog (master list of available tests)
-export const testCatalog = pgTable("test_catalog", {
+export const testCatalog = pgTable(
+  "test_catalog",
+  {
   id: serial("id").primaryKey(),
   code: varchar("code", { length: 50 }).notNull().unique(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -129,10 +139,14 @@ export const testCatalog = pgTable("test_catalog", {
   turnaroundHours: integer("turnaround_hours").default(24),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+},
+  (table) => [index("idx_test_catalog_category_id").on(table.categoryId)]
+);
 
 // Lab orders
-export const labOrders = pgTable("lab_orders", {
+export const labOrders = pgTable(
+  "lab_orders",
+  {
   id: serial("id").primaryKey(),
   orderNo: varchar("order_no", { length: 50 }).notNull().unique(),
   noPermintaan: varchar("no_permintaan", { length: 50 }),
@@ -157,10 +171,22 @@ export const labOrders = pgTable("lab_orders", {
   createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+},
+  (table) => [
+    index("idx_lab_orders_patient_id").on(table.patientId),
+    index("idx_lab_orders_doctor_id").on(table.doctorId),
+    index("idx_lab_orders_created_by").on(table.createdBy),
+    index("idx_lab_orders_validated_by").on(table.validatedBy),
+    index("idx_lab_orders_status").on(table.status),
+    index("idx_lab_orders_created_at").on(table.createdAt),
+    index("idx_lab_orders_request_date").on(table.requestDate),
+  ]
+);
 
 // Order items (tests within an order)
-export const orderItems = pgTable("order_items", {
+export const orderItems = pgTable(
+  "order_items",
+  {
   id: serial("id").primaryKey(),
   orderId: integer("order_id")
     .references(() => labOrders.id, { onDelete: "cascade" })
@@ -183,10 +209,20 @@ export const orderItems = pgTable("order_items", {
   enteredAt: timestamp("entered_at"),
   validatedBy: integer("validated_by").references(() => users.id),
   validatedAt: timestamp("validated_at"),
-});
+},
+  (table) => [
+    index("idx_order_items_order_id").on(table.orderId),
+    index("idx_order_items_test_id").on(table.testId),
+    index("idx_order_items_result_status").on(table.resultStatus),
+    index("idx_order_items_entered_by").on(table.enteredBy),
+    index("idx_order_items_validated_by").on(table.validatedBy),
+  ]
+);
 
 // Audit log
-export const auditLog = pgTable("audit_log", {
+export const auditLog = pgTable(
+  "audit_log",
+  {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
   action: varchar("action", { length: 100 }).notNull(),
@@ -194,7 +230,9 @@ export const auditLog = pgTable("audit_log", {
   entityId: integer("entity_id"),
   details: text("details"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+},
+  (table) => [index("idx_audit_log_user_id").on(table.userId)]
+);
 
 // Test Packages (Paket Pemeriksaan)
 export const testPackages = pgTable("test_packages", {
@@ -208,11 +246,18 @@ export const testPackages = pgTable("test_packages", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const testPackageItems = pgTable("test_package_items", {
+export const testPackageItems = pgTable(
+  "test_package_items",
+  {
   id: serial("id").primaryKey(),
   packageId: integer("package_id").references(() => testPackages.id, { onDelete: "cascade" }).notNull(),
   testId: integer("test_id").references(() => testCatalog.id).notNull(),
-});
+},
+  (table) => [
+    index("idx_test_package_items_package_id").on(table.packageId),
+    index("idx_test_package_items_test_id").on(table.testId),
+  ]
+);
 
 // Letterhead settings (Kop Surat)
 export const letterheadSettings = pgTable("letterhead_settings", {

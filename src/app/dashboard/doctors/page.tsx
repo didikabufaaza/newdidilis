@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface Doctor {
   id: number;
@@ -35,9 +36,7 @@ export default function DoctorsPage() {
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      const res = await fetch(`/api/doctors?${params}`);
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
+      const data = await apiGet<{ doctors?: Doctor[] }>(`/api/doctors?${params}`, 10_000);
       setDoctors(data.doctors || []);
     } catch {
       setDoctors([]);
@@ -90,6 +89,7 @@ export default function DoctorsPage() {
       });
 
       if (res.ok) {
+        clearApiCache();
         setShowModal(false);
         fetchDoctors();
       }
@@ -107,6 +107,7 @@ export default function DoctorsPage() {
     try {
       const res = await fetch(`/api/doctors/${id}`, { method: "DELETE" });
       if (res.ok) {
+        clearApiCache();
         fetchDoctors();
       } else {
         alert("Gagal menghapus dokter");

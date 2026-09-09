@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface LetterheadSettings {
   id?: number;
@@ -30,8 +31,7 @@ export default function LetterheadPage() {
   const rightInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/settings/letterhead")
-      .then((r) => r.json())
+    apiGet<{ settings?: LetterheadSettings | null }>("/api/settings/letterhead", 60_000)
       .then((data) => {
         if (data.settings) {
           setSettings({
@@ -67,6 +67,7 @@ export default function LetterheadPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     });
+    clearApiCache();
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);

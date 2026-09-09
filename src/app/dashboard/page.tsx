@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
+import { apiGet } from "@/lib/api-client";
 
 interface DashboardData {
   stats: {
@@ -47,17 +48,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
-    fetch("/api/dashboard", { headers })
-      .then((r) => {
-        if (!r.ok) throw new Error("Unauthorized");
-        return r.json();
-      })
+    apiGet<DashboardData>("/api/dashboard")
       .then(setData)
       .catch(() => {
         window.location.href = "/login";

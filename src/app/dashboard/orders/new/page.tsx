@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface Patient {
   id: number;
@@ -80,17 +81,11 @@ function NewOrderContent() {
   const [testTab, setTestTab] = useState<"item" | "paket">("item");
 
   useEffect(() => {
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
     Promise.all([
-      fetch("/api/patients?limit=100", { headers }).then((r) => r.json()),
-      fetch("/api/doctors", { headers }).then((r) => r.json()),
-      fetch("/api/tests?all=true", { headers }).then((r) => r.json()),
-      fetch("/api/packages", { headers }).then((r) => r.json()),
+      apiGet<{ patients?: Patient[] }>("/api/patients?limit=100", 10_000),
+      apiGet<{ doctors?: any[] }>("/api/doctors", 60_000),
+      apiGet<{ tests?: any[] }>("/api/tests?all=true", 60_000),
+      apiGet<{ packages?: any[] }>("/api/packages", 60_000),
     ]).then(([pData, dData, tData, pkgData]) => {
       const pts: Patient[] = pData.patients || [];
       setPatients(pts);
@@ -169,6 +164,7 @@ function NewOrderContent() {
       });
 
       if (res.ok) {
+        clearApiCache();
         const data = await res.json();
         window.location.href = `/dashboard/orders/${data.order.id}`;
       } else {

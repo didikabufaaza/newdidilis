@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { apiGet, clearApiCache } from "@/lib/api-client";
 
 interface OrderDetail {
   id: number;
@@ -93,20 +94,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [addingTests, setAddingTests] = useState(false);
 
   const fetchOrder = async () => {
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
-    const res = await fetch(`/api/orders/${id}`, { headers });
-    if (!res.ok) {
+    try {
+      const data = await apiGet<{ order: any; items: any[] }>(`/api/orders/${id}`, 10_000);
+      setOrder(data.order);
+      setItems(data.items);
+    } catch {
       router.push("/dashboard/orders");
       return;
     }
-    const data = await res.json();
-    setOrder(data.order);
-    setItems(data.items);
     setLoading(false);
   };
 
@@ -127,6 +122,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       headers,
       body: JSON.stringify({ status: newStatus }),
     });
+    clearApiCache();
     await fetchOrder();
     setUpdating(false);
   };
@@ -136,14 +132,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     setSelectedNewTests([]);
     setTestSearch("");
 
-    const token = localStorage.getItem("lis_token");
-    const viewAsUserId = localStorage.getItem("viewAsUserId");
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
-    const res = await fetch("/api/tests?all=true", { headers });
-    const data = await res.json();
+    const data = await apiGet<{ tests?: any[] }>("/api/tests?all=true", 60_000);
     setAvailableTests(data.tests || []);
   };
 
@@ -167,6 +156,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       });
 
       if (res.ok) {
+        clearApiCache();
         setShowAddModal(false);
         setSelectedNewTests([]);
         await fetchOrder();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiGet } from "@/lib/api-client";
 
 interface ReportData {
   id: number;
@@ -83,8 +84,8 @@ export default function ReportsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/doctors").then((r) => r.json()),
-      fetch("/api/tests?limit=200").then((r) => r.json()),
+      apiGet<{ doctors?: any[] }>("/api/doctors", 60_000),
+      apiGet<{ tests?: any[] }>("/api/tests?limit=200", 60_000),
     ]).then(([d, t]) => {
       setDoctors(d.doctors || []);
       setTests(t.tests || []);
@@ -103,14 +104,7 @@ export default function ReportsPage() {
     if (testFilter) params.set("testId", testFilter);
 
     try {
-      const token = localStorage.getItem("lis_token");
-      const viewAsUserId = localStorage.getItem("viewAsUserId");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      if (viewAsUserId) headers["X-View-As"] = viewAsUserId;
-
-      const res = await fetch(`/api/reports?${params}`, { headers });
-      const result = await res.json();
+      const result = await apiGet<{ data?: any[]; summary?: any; topTests?: any[] }>(`/api/reports?${params}`, 10_000);
       setData(result.data || []);
       setSummary(result.summary || { totalOrders: 0, totalRevenue: 0, completedOrders: 0, pendingOrders: 0 });
       setTopTests(result.topTests || []);
