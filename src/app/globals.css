@@ -77,14 +77,18 @@ html {
     width: 100% !important;
     height: auto !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 10mm !important;
+    box-sizing: border-box !important;
     background: white !important;
+    -webkit-box-decoration-break: clone !important;
+    box-decoration-break: clone !important;
   }
 
-  /* A4 page with 1cm margins */
+  /* A4 page with zero margins so the browser does not render its own
+     URL/title/date header-footer on the printed page */
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 0;
   }
 
   /* Allow tables to break across pages but keep rows & headers intact */

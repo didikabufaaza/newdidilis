@@ -105,11 +105,11 @@ function LabResultDocument({
       <table style={{ width: "100%", marginBottom: "12px", borderBottom: "3px double #333", paddingBottom: "10px" }}>
         <tbody>
           <tr>
-            <td style={{ width: "80px", verticalAlign: "middle" }}>
+            <td style={{ width: "120px", verticalAlign: "middle" }}>
               {letterhead?.logoLeft ? (
-                <img src={letterhead.logoLeft} alt="Logo Kiri" style={{ maxHeight: "65px", maxWidth: "70px", objectFit: "contain" }} />
+                <img src={letterhead.logoLeft} alt="Logo Kiri" style={{ maxHeight: "110px", maxWidth: "115px", objectFit: "contain" }} />
               ) : (
-                <div style={{ width: "60px", height: "60px", background: "#eee", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "#888" }}>
+                <div style={{ width: "90px", height: "90px", background: "#eee", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#888" }}>
                   LOGO
                 </div>
               )}
@@ -132,11 +132,11 @@ function LabResultDocument({
                 {letterhead?.hospitalPhone && `Telp: ${letterhead.hospitalPhone}`}
               </div>
             </td>
-            <td style={{ width: "80px", verticalAlign: "middle", textAlign: "right" }}>
+            <td style={{ width: "120px", verticalAlign: "middle", textAlign: "right" }}>
               {letterhead?.logoRight ? (
-                <img src={letterhead.logoRight} alt="Logo Kanan" style={{ maxHeight: "65px", maxWidth: "70px", objectFit: "contain", marginLeft: "auto" }} />
+                <img src={letterhead.logoRight} alt="Logo Kanan" style={{ maxHeight: "110px", maxWidth: "115px", objectFit: "contain", marginLeft: "auto" }} />
               ) : (
-                <div style={{ width: "60px", height: "60px", background: "#eee", borderRadius: "6px", marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "#888" }}>
+                <div style={{ width: "90px", height: "90px", background: "#eee", borderRadius: "6px", marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#888" }}>
                   LOGO
                 </div>
               )}
@@ -291,6 +291,15 @@ function LabResultDocument({
           <div style={{ borderTop: "1px solid #000", paddingTop: "5px", fontSize: "12px", fontWeight: 600 }}>
             Penanggung Jawab Laboratorium
           </div>
+        </div>
+      </div>
+
+      {/* FOOTER KETERANGAN & CATATAN */}
+      <div style={{ marginTop: "30px", paddingTop: "12px", borderTop: "1px solid #e2e8f0", fontSize: "10px", color: "#64748b" }}>
+        <div><strong>Keterangan Flag:</strong> ↑ High = Nilai di atas batas normal &nbsp;&nbsp;|&nbsp;&nbsp; ↓ Low = Nilai di bawah batas normal</div>
+        <div style={{ marginTop: "2px" }}>Hasil pemeriksaan laboratorium ini telah tervalidasi secara sistem informasi laboratorium (LIS).</div>
+        <div style={{ marginTop: "2px", fontStyle: "italic" }}>
+          Dicetak pada: {format(new Date(), "dd/MM/yyyy HH:mm:ss", { locale: idLocale })}
         </div>
       </div>
     </div>
