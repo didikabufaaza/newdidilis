@@ -1,33 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDbAvailable } from "@/db";
-import { orderItems, labOrders, patients, testCatalog } from "@/db/schema";
+import { orderItems, labOrders } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
-import { getMockOrderItems, mockLabOrders } from "@/lib/mock-data";
-import { normalizeCreatinineMgDl, parseAgeYears, computeEgfrCkdEpi2021, isCreatinineTestCode, isEgfrTestCode, EGFREPIReferenceMin } from "@/lib/egfr";
-
-function recomputeMockEgfr(orderId: number) {
-  const items = getMockOrderItems(orderId);
-  const creatinineItem = items.find((i) => isCreatinineTestCode(i.testCode));
-  const egfrItem = items.find((i) => isEgfrTestCode(i.testCode));
-  if (!creatinineItem || !egfrItem) return;
-
-  const order = mockLabOrders.find((o) => o.id === orderId);
-  const creatMgDl = normalizeCreatinineMgDl(creatinineItem.resultNumeric ?? creatinineItem.result, creatinineItem.unit);
-  const ageYears = parseAgeYears(order?.age) ?? parseAgeYears(order?.patientAge);
-  const isFemale = order?.patientGender === "female";
-  if (creatMgDl === null || ageYears === null) return;
-
-  const egfr = computeEgfrCkdEpi2021(creatMgDl, ageYears, isFemale);
-  if (egfr === null) return;
-
-  egfrItem.result = String(egfr);
-  egfrItem.resultNumeric = String(egfr);
-  egfrItem.resultStatus = "entered";
-  egfrItem.flag = egfr < parseInt(EGFREPIReferenceMin, 10) ? "L" : null;
-  egfrItem.notes = "Dihitung otomatis dengan persamaan CKD-EPI 2021";
-  egfrItem.enteredAt = new Date();
-}
+import { getMockOrderItems, mockLabOrders, ensureMockEgfrForOrder } from "@/lib/mock-data";
+import { ensureAndComputeEgfr } from "@/lib/egfr-service";
 
 export async function PUT(
   request: NextRequest,
@@ -69,7 +46,7 @@ export async function PUT(
       }
     }
 
-    recomputeMockEgfr(orderId);
+    ensureMockEgfrForOrder(orderId);
 
     const orderIdx = mockLabOrders.findIndex((o) => o.id === orderId);
     if (orderIdx !== -1) {
@@ -107,65 +84,13 @@ export async function PUT(
           .where(eq(orderItems.id, r.itemId));
       }
 
-      const orderItemsForCalc = await tx
-        .select({
-          id: orderItems.id,
-          testCode: testCatalog.code,
-          result: orderItems.result,
-          resultNumeric: orderItems.resultNumeric,
-          unit: orderItems.unit,
-        })
-        .from(orderItems)
-        .innerJoin(testCatalog, eq(orderItems.testId, testCatalog.id))
-        .where(eq(orderItems.orderId, orderId));
-
-      const creatinineItem = orderItemsForCalc.find((i) => isCreatinineTestCode(i.testCode));
-      const egfrItem = orderItemsForCalc.find((i) => isEgfrTestCode(i.testCode));
-
-      if (creatinineItem && egfrItem) {
-        const submitted = results.find((r) => r.itemId === creatinineItem.id);
-        const rawValue = submitted?.resultNumeric ?? submitted?.result ?? creatinineItem.resultNumeric;
-        const creatMgDl = normalizeCreatinineMgDl(rawValue, creatinineItem.unit);
-
-        const [orderRow] = await tx
-          .select({
-            age: labOrders.age,
-            patientAge: patients.age,
-            patientGender: patients.gender,
-          })
-          .from(labOrders)
-          .innerJoin(patients, eq(labOrders.patientId, patients.id))
-          .where(eq(labOrders.id, orderId))
-          .limit(1);
-
-        const ageYears = parseAgeYears(orderRow?.age) ?? parseAgeYears(orderRow?.patientAge);
-        const isFemale = orderRow?.patientGender === "female";
-
-        if (creatMgDl !== null && ageYears !== null && isFemale !== undefined) {
-          const egfr = computeEgfrCkdEpi2021(creatMgDl, ageYears, isFemale);
-          if (egfr != null) {
-            const flag = egfr < parseInt(EGFREPIReferenceMin, 10) ? "L" : null;
-            await tx
-              .update(orderItems)
-              .set({
-                result: String(egfr),
-                resultNumeric: String(egfr),
-                flag,
-                resultStatus: "entered",
-                notes: "Dihitung otomatis dengan persamaan CKD-EPI 2021",
-                enteredBy: user.id,
-                enteredAt: new Date(),
-              })
-              .where(eq(orderItems.id, egfrItem.id));
-          }
-        }
-      }
-
       await tx
         .update(labOrders)
         .set({ status: "in_progress", updatedAt: new Date() })
         .where(eq(labOrders.id, orderId));
     });
+
+    await ensureAndComputeEgfr(orderId, user.id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

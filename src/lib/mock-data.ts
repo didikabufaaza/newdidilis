@@ -1,4 +1,17 @@
 import bcrypt from "bcryptjs";
+import {
+  EGFREPICode,
+  EGFREPIName,
+  EGFREPIUnit,
+  EGFREPIReferenceMin,
+  EGFREPIReferenceText,
+  computeEgfrCkdEpi2021,
+  isCreatinineTestCode,
+  isUreumTestCode,
+  isEgfrTestCode,
+  normalizeCreatinineMgDl,
+  parseAgeYears,
+} from "@/lib/egfr";
 
 export interface MockUser {
   id: number;
@@ -397,6 +410,58 @@ export function getMockOrdersByMRN(mrn: string, excludeOrderId?: number): MockLa
     .filter((o) => o.patientMrn === mrn && o.id !== excludeOrderId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
+}
+
+const MOCK_EGFR_TEST_ID = 45;
+
+export function ensureMockEgfrForOrder(orderId: number): void {
+  const items = getMockOrderItems(orderId);
+  const hasCreatinine = items.some((i) => isCreatinineTestCode(i.testCode));
+  const hasUreum = items.some((i) => isUreumTestCode(i.testCode));
+  let egfrItem = items.find((i) => isEgfrTestCode(i.testCode)) || undefined;
+
+  if (!hasCreatinine || !hasUreum) {
+    if (egfrItem && _mutableMockOrderItemsByOrder[orderId]) {
+      _mutableMockOrderItemsByOrder[orderId] = _mutableMockOrderItemsByOrder[orderId].filter(
+        (i) => !isEgfrTestCode(i.testCode)
+      );
+    }
+    return;
+  }
+
+  if (!egfrItem) {
+    egfrItem = addMockOrderItem(
+      orderId,
+      MOCK_EGFR_TEST_ID,
+      EGFREPICode,
+      EGFREPIName,
+      "Kimia Klinik",
+      EGFREPIUnit,
+      EGFREPIReferenceMin,
+      null,
+      EGFREPIReferenceText
+    );
+  }
+
+  const creatinineItem = items.find((i) => isCreatinineTestCode(i.testCode));
+  const creatMgDl = normalizeCreatinineMgDl(
+    creatinineItem?.resultNumeric ?? creatinineItem?.result,
+    creatinineItem?.unit
+  );
+
+  const order = mockLabOrders.find((o) => o.id === orderId);
+  const ageYears = parseAgeYears(order?.age) ?? parseAgeYears(order?.patientAge);
+  if (creatMgDl === null || ageYears === null) return;
+
+  const egfr = computeEgfrCkdEpi2021(creatMgDl, ageYears, order?.patientGender === "female");
+  if (egfr === null) return;
+
+  egfrItem.result = String(egfr);
+  egfrItem.resultNumeric = String(egfr);
+  egfrItem.resultStatus = "entered";
+  egfrItem.flag = egfr < parseInt(EGFREPIReferenceMin, 10) ? "L" : null;
+  egfrItem.notes = "Dihitung otomatis dengan persamaan CKD-EPI 2021";
+  egfrItem.enteredAt = new Date();
 }
 
 export const mockTestPackages: MockTestPackage[] = [

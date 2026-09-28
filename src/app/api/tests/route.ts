@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDbAvailable } from "@/db";
 import { testCatalog, testCategories } from "@/db/schema";
-import { eq, ilike, or, sql, desc, asc } from "drizzle-orm";
+import { eq, ilike, or, sql, desc, asc, ne, and } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
 import { mockTestCatalog } from "@/lib/mock-data";
+import { EGFREPICode } from "@/lib/egfr";
 
 export async function GET(request: NextRequest) {
   const user = await getAuthUser();
@@ -14,10 +15,10 @@ export async function GET(request: NextRequest) {
   if (!(await isDbAvailable())) {
     const search = request.nextUrl.searchParams.get("search") || "";
     const all = request.nextUrl.searchParams.get("all") === "true";
-    let filtered = mockTestCatalog;
+    let filtered = mockTestCatalog.filter((t) => t.code !== EGFREPICode);
     if (search) {
       const q = search.toLowerCase();
-      filtered = mockTestCatalog.filter(
+      filtered = filtered.filter(
         (t) =>
           t.name.toLowerCase().includes(q) ||
           t.code.toLowerCase().includes(q)
@@ -40,6 +41,11 @@ export async function GET(request: NextRequest) {
         )
       : undefined;
 
+    const whereClause = and(
+      conditions,
+      ne(testCatalog.code, EGFREPICode)
+    );
+
     const data = await db
       .select({
         id: testCatalog.id,
@@ -58,7 +64,7 @@ export async function GET(request: NextRequest) {
       })
       .from(testCatalog)
       .leftJoin(testCategories, eq(testCatalog.categoryId, testCategories.id))
-      .where(conditions)
+      .where(whereClause)
       .orderBy(asc(testCategories.sortOrder), asc(testCatalog.code))
       .limit(all ? 1000 : 50);
 

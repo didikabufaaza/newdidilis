@@ -3,6 +3,7 @@ import { db, isDbAvailable } from "@/db";
 import { labOrders, orderItems, testCatalog } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
+import { ensureAndComputeEgfr } from "@/lib/egfr-service";
 
 export async function POST(
   request: NextRequest,
@@ -108,6 +109,8 @@ export async function POST(
       })
       .where(eq(labOrders.id, orderId));
 
+    await ensureAndComputeEgfr(orderId, user.id);
+
     return NextResponse.json({ success: true, addedCount: newTestIds.length });
   } catch (error) {
     console.error("Add items error:", error);
@@ -172,6 +175,8 @@ export async function DELETE(
         .set({ totalPrice: "0", updatedAt: new Date() })
         .where(eq(labOrders.id, orderId));
     }
+
+    await ensureAndComputeEgfr(orderId, user.id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

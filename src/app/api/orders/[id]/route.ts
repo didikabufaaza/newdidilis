@@ -3,7 +3,8 @@ import { db, isDbAvailable } from "@/db";
 import { labOrders, patients, doctors, orderItems, testCatalog, testCategories } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
-import { mockLabOrders, getMockOrderItems } from "@/lib/mock-data";
+import { mockLabOrders, getMockOrderItems, ensureMockEgfrForOrder } from "@/lib/mock-data";
+import { ensureAndComputeEgfr } from "@/lib/egfr-service";
 
 export async function GET(
   _request: NextRequest,
@@ -22,6 +23,7 @@ export async function GET(
     if (!order) {
       return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 });
     }
+    ensureMockEgfrForOrder(orderId);
     const items = getMockOrderItems(orderId);
     return NextResponse.json({ order, items });
   }
@@ -71,6 +73,8 @@ export async function GET(
       return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 });
     }
 
+    await ensureAndComputeEgfr(order.id);
+
     const items = await db
       .select({
         id: orderItems.id,
@@ -103,6 +107,7 @@ export async function GET(
     if (!order) {
       return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 });
     }
+    ensureMockEgfrForOrder(orderId);
     const items = getMockOrderItems(orderId);
     return NextResponse.json({ order, items });
   }
