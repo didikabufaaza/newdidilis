@@ -206,61 +206,76 @@ export async function POST(request: NextRequest) {
     "Gunakan bahasa Indonesia."
   );
 
-  try {
-    const geminiRes = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [{ parts: [{ text: userPromptParts.join("\n") }] }],
-          generationConfig: {
-            temperature: 0.4,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
+  const MODELS = [
+    "gemini-3.6-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+  ];
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error("Gemini API error:", geminiRes.status, errText);
-      return NextResponse.json(
-        { error: `Gagal memanggil layanan AI (status ${geminiRes.status}). Silakan coba lagi.` },
-        { status: 502 }
-      );
-    }
+  const geminiBody = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{ parts: [{ text: userPromptParts.join("\n") }] }],
+    generationConfig: {
+      temperature: 0.4,
+      responseMimeType: "application/json",
+    },
+  });
 
-    const geminiData = await geminiRes.json();
-    const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+  let lastError = "Terjadi kesalahan saat menganalisis hasil";
 
-    if (!text) {
-      return NextResponse.json({ error: "Layanan AI tidak mengembalikan hasil analisis" }, { status: 502 });
-    }
-
-    let parsed: unknown;
+  for (const model of MODELS) {
     try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = { raw: text };
-    }
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: geminiBody,
+        }
+      );
 
-    return NextResponse.json({
-      analysis: parsed,
-      analyzedAt: new Date().toISOString(),
-      order: {
-        orderNo: data.order.orderNo,
-        patientName: data.order.patientName,
-        patientMrn: data.order.patientMrn,
-      },
-      items: itemList,
-    });
-  } catch (error) {
-    console.error("Analyze error:", error);
-    return NextResponse.json({ error: "Terjadi kesalahan saat menganalisis hasil" }, { status: 500 });
+      if (!geminiRes.ok) {
+        const errText = await geminiRes.text();
+        console.error("Gemini API error:", model, geminiRes.status, errText);
+        lastError = `Gagal memanggil layanan AI (status ${geminiRes.status}). Silakan coba lagi.`;
+        if (geminiRes.status === 400 || geminiRes.status === 403) break;
+        continue;
+      }
+
+      const geminiData = await geminiRes.json();
+      const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!text) {
+        lastError = "Layanan AI tidak mengembalikan hasil analisis";
+        continue;
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+
+      return NextResponse.json({
+        analysis: parsed,
+        analyzedAt: new Date().toISOString(),
+        order: {
+          orderNo: data.order.orderNo,
+          patientName: data.order.patientName,
+          patientMrn: data.order.patientMrn,
+        },
+        items: itemList,
+      });
+    } catch (error) {
+      console.error("Analyze error:", model, error);
+      continue;
+    }
   }
+
+  return NextResponse.json({ error: lastError }, { status: 502 });
 }

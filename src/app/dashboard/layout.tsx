@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import AuthProvider from "@/components/AuthProvider";
 import ViewAsDropdown from "@/components/ViewAsDropdown";
+import { prefetchApi } from "@/lib/api-client";
 
 export default function DashboardLayout({
   children,
@@ -33,6 +34,14 @@ export default function DashboardLayout({
         setUser(data.user);
         localStorage.setItem("canAnalyze", data.user?.canAnalyze ? "true" : "false");
         setChecking(false);
+        prefetchApi([
+          "/api/orders?limit=100",
+          "/api/tests?all=true",
+          "/api/doctors",
+          "/api/packages",
+          "/api/tests/categories",
+          "/api/settings/letterhead",
+        ]);
       })
       .catch(() => {
         localStorage.removeItem("lis_token");

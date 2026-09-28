@@ -3,6 +3,19 @@ type CacheEntry = { data: unknown; expires: number };
 const cache = new Map<string, CacheEntry>();
 
 const DEFAULT_TTL_MS = 30_000;
+const REFERENCE_TTL_MS = 300_000;
+
+function defaultTtlFor(url: string): number {
+  if (
+    url.startsWith("/api/doctors") ||
+    url.startsWith("/api/tests") ||
+    url.startsWith("/api/packages") ||
+    url.startsWith("/api/settings/letterhead")
+  ) {
+    return REFERENCE_TTL_MS;
+  }
+  return DEFAULT_TTL_MS;
+}
 
 function buildHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -15,7 +28,8 @@ function buildHeaders(): Record<string, string> {
   return headers;
 }
 
-export async function apiGet<T>(url: string, ttlMs: number = DEFAULT_TTL_MS): Promise<T> {
+export async function apiGet<T>(url: string, ttlMs?: number): Promise<T> {
+  const ttl = ttlMs ?? defaultTtlFor(url);
   if (typeof window === "undefined") {
     const res = await fetch(url, { headers: buildHeaders() });
     if (!res.ok) throw new Error(`GET ${url} failed with status ${res.status}`);
@@ -35,8 +49,12 @@ export async function apiGet<T>(url: string, ttlMs: number = DEFAULT_TTL_MS): Pr
     throw new Error(`GET ${url} failed with status ${res.status}`);
   }
   const data = (await res.json()) as T;
-  cache.set(key, { data, expires: Date.now() + ttlMs });
+  cache.set(key, { data, expires: Date.now() + ttl });
   return data;
+}
+
+export function prefetchApi(urls: string[]): Promise<void> {
+  return Promise.allSettled(urls.map((u) => apiGet<unknown>(u))).then(() => {});
 }
 
 export function clearApiCache(): void {
