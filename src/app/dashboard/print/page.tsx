@@ -283,7 +283,7 @@ function LabResultDocument({
       })}
 
       {/* TANDA TANGAN */}
-      <div style={{ marginTop: "40px", display: "flex", justifyContent: "flex-end" }}>
+      <div className="print-signature" style={{ marginTop: "40px", display: "flex", justifyContent: "flex-end" }}>
         <div style={{ textAlign: "center", width: "240px" }}>
           <div style={{ marginBottom: "55px", fontSize: "12px" }}>
             {format(new Date(), "'Tanggal' dd MMMM yyyy", { locale: idLocale })}
@@ -291,15 +291,6 @@ function LabResultDocument({
           <div style={{ borderTop: "1px solid #000", paddingTop: "5px", fontSize: "12px", fontWeight: 600 }}>
             Penanggung Jawab Laboratorium
           </div>
-        </div>
-      </div>
-
-      {/* FOOTER KETERANGAN & CATATAN */}
-      <div style={{ marginTop: "30px", paddingTop: "12px", borderTop: "1px solid #e2e8f0", fontSize: "10px", color: "#64748b" }}>
-        <div><strong>Keterangan Flag:</strong> ↑ High = Nilai di atas batas normal &nbsp;&nbsp;|&nbsp;&nbsp; ↓ Low = Nilai di bawah batas normal</div>
-        <div style={{ marginTop: "2px" }}>Hasil pemeriksaan laboratorium ini telah tervalidasi secara sistem informasi laboratorium (LIS).</div>
-        <div style={{ marginTop: "2px", fontStyle: "italic" }}>
-          Dicetak pada: {format(new Date(), "dd/MM/yyyy HH:mm:ss", { locale: idLocale })}
         </div>
       </div>
     </div>

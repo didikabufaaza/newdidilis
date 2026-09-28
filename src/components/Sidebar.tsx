@@ -315,7 +315,7 @@ export default function Sidebar({ user }: SidebarProps) {
       {/* Mobile toggle button */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-40 bg-blue-600 text-white p-2.5 rounded-lg shadow-lg"
+        className="lg:hidden print:hidden fixed top-4 left-4 z-40 bg-blue-600 text-white p-2.5 rounded-lg shadow-lg"
         aria-label="Menu"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -326,14 +326,14 @@ export default function Sidebar({ user }: SidebarProps) {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          className="lg:hidden print:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Mobile sidebar */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-blue-800 to-blue-900 transform transition-transform duration-300 ${
+        className={`lg:hidden print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-blue-800 to-blue-900 transform transition-transform duration-300 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -351,7 +351,7 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Desktop sidebar */}
       <aside
-        className={`hidden lg:flex flex-col bg-gradient-to-b from-blue-800 to-blue-900 transition-all duration-300 relative ${
+        className={`hidden lg:flex print:hidden flex-col bg-gradient-to-b from-blue-800 to-blue-900 transition-all duration-300 relative ${
           collapsed ? "w-[72px]" : "w-64"
         }`}
       >

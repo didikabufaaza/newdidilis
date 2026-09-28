@@ -64,11 +64,11 @@ export default function DashboardLayout({
 
   return (
     <AuthProvider>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
         <Sidebar user={user} />
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="lg:hidden h-14" />
-          <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-4 py-2 flex justify-end items-center min-h-[44px]">
+        <main className="flex-1 overflow-y-auto bg-gray-50 print:overflow-visible">
+          <div className="lg:hidden print:hidden h-14" />
+          <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-4 py-2 flex justify-end items-center min-h-[44px] print:hidden">
             {user.role === "superadmin" && <ViewAsDropdown currentUserId={user.id} />}
           </div>
           {children}
