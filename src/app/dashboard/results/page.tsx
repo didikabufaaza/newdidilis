@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AnalysisResultPanel from "@/components/AnalysisResultPanel";
 import { getCanAnalyzeClient } from "@/lib/client-analysis";
 import { apiGet, clearApiCache } from "@/lib/api-client";
+import {
+  computeEgfrCkdEpi2021,
+  parseAgeYears,
+  normalizeCreatinineMgDl,
+  isCreatinineTestCode,
+  isEgfrTestCode,
+  EGFREPIReferenceMin,
+} from "@/lib/egfr";
 
 interface Order {
   id: number;
@@ -78,50 +86,61 @@ function ResultsContent() {
       .catch(() => setLoading(false));
   }, []);
 
+  const loadOrder = useCallback(
+    (orderId: number, silent: boolean = false) => {
+      if (!silent) {
+        setLoadingItems(true);
+        setAnalysis(null);
+        setAnalysisError("");
+      }
+
+      apiGet<{ order: any; items: OrderItem[] }>(`/api/orders/${orderId}`, 10_000)
+        .then((data) => {
+          setItems(data.items || []);
+          setOrderHeader({
+            orderNo: data.order.orderNo,
+            noLab: data.order.noLab,
+            noPermintaan: data.order.noPermintaan,
+            patientName: data.order.patientName,
+            patientMrn: data.order.patientMrn,
+            patientAge: data.order.age || data.order.patientAge,
+            patientGender: data.order.patientGender,
+            room: data.order.room || data.order.patientRoom,
+            doctorName: data.order.doctorName,
+            diagnosis: data.order.diagnosis,
+          });
+          const rMap: Record<number, { result: string; flag: string; notes: string }> = {};
+          (data.items || []).forEach((i: OrderItem) => {
+            rMap[i.id] = {
+              result: i.result || "",
+              flag: i.flag || "",
+              notes: i.notes || "",
+            };
+          });
+          setResults(rMap);
+          setLoadingItems(false);
+
+          if (data.order?.patientMrn) {
+            setLoadingPrevious(true);
+            apiGet<{ previousResults: any[] }>(`/api/results/previous?mrn=${data.order.patientMrn}&excludeOrderId=${orderId}`, 10_000)
+              .then((prev) => {
+                setPreviousResults(prev.previousResults || []);
+                setLoadingPrevious(false);
+              })
+              .catch(() => setLoadingPrevious(false));
+          }
+        })
+        .catch(() => {
+          if (!silent) setLoadingItems(false);
+        });
+    },
+    []
+  );
+
   useEffect(() => {
     if (!selectedOrderId) return;
-    setLoadingItems(true);
-    setAnalysis(null);
-    setAnalysisError("");
-
-    apiGet<{ order: any; items: OrderItem[] }>(`/api/orders/${selectedOrderId}`, 10_000)
-      .then((data) => {
-        setItems(data.items || []);
-        setOrderHeader({
-          orderNo: data.order.orderNo,
-          noLab: data.order.noLab,
-          noPermintaan: data.order.noPermintaan,
-          patientName: data.order.patientName,
-          patientMrn: data.order.patientMrn,
-          patientAge: data.order.age || data.order.patientAge,
-          patientGender: data.order.patientGender,
-          room: data.order.room || data.order.patientRoom,
-          doctorName: data.order.doctorName,
-          diagnosis: data.order.diagnosis,
-        });
-        const rMap: Record<number, { result: string; flag: string; notes: string }> = {};
-        (data.items || []).forEach((i: OrderItem) => {
-          rMap[i.id] = {
-            result: i.result || "",
-            flag: i.flag || "",
-            notes: i.notes || "",
-          };
-        });
-        setResults(rMap);
-        setLoadingItems(false);
-
-        if (data.order?.patientMrn) {
-          setLoadingPrevious(true);
-          apiGet<{ previousResults: any[] }>(`/api/results/previous?mrn=${data.order.patientMrn}&excludeOrderId=${selectedOrderId}`, 10_000)
-            .then((prev) => {
-              setPreviousResults(prev.previousResults || []);
-              setLoadingPrevious(false);
-            })
-            .catch(() => setLoadingPrevious(false));
-        }
-      })
-      .catch(() => setLoadingItems(false));
-  }, [selectedOrderId]);
+    loadOrder(selectedOrderId);
+  }, [selectedOrderId, loadOrder]);
 
   const autoFlag = (v: string, min: string | null, max: string | null) => {
     const n = parseFloat(v);
@@ -144,7 +163,32 @@ function ResultsContent() {
       if (field === "result") updated.flag = autoFlag(value, item.referenceMin, item.referenceMax);
       return { ...prev, [itemId]: updated };
     });
+
+    if (field === "result" && isCreatinineTestCode(item.testCode)) {
+      updateLiveEgfr(value, item);
+    }
+
     setSaved(false);
+  };
+
+  const updateLiveEgfr = (creatValue: string, creatinineItem: OrderItem) => {
+    const egfrItem = items.find((i) => isEgfrTestCode(i.testCode));
+    if (!egfrItem) return;
+    const creatMgDl = normalizeCreatinineMgDl(creatValue, creatinineItem.unit);
+    const ageYears = parseAgeYears(orderHeader?.patientAge);
+    const isFemale = orderHeader?.patientGender === "female";
+    if (creatMgDl === null || ageYears === null || orderHeader?.patientGender === undefined) return;
+    const egfr = computeEgfrCkdEpi2021(creatMgDl, ageYears, isFemale);
+    if (egfr === null) return;
+
+    setResults((prev) => ({
+      ...prev,
+      [egfrItem.id]: {
+        result: String(egfr),
+        flag: egfr < parseInt(EGFREPIReferenceMin, 10) ? "L" : "",
+        notes: prev[egfrItem.id]?.notes || "Dihitung otomatis (CKD-EPI 2021)",
+      },
+    }));
   };
 
   const handleDeleteItem = async (itemId: number) => {
@@ -238,6 +282,7 @@ function ResultsContent() {
     if (andPrint) {
       window.location.href = `/dashboard/print?orderId=${selectedOrderId}`;
     } else {
+      loadOrder(selectedOrderId, true);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     }

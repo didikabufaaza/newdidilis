@@ -462,6 +462,17 @@ async function seed() {
         price: "150000",
         turnaroundHours: 6,
       },
+      {
+        code: "KIM-045",
+        name: "eGFR (CKD-EPI 2021)",
+        categoryId: catMap["Kimia Klinik"],
+        sampleType: "serum",
+        unit: "mL/menit/1,73 m²",
+        referenceMin: "90",
+        referenceText: ">= 90",
+        price: "0",
+        turnaroundHours: 4,
+      },
       // Urinalisis
       {
         code: "URI-001",

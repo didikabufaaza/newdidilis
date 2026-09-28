@@ -273,6 +273,7 @@ export const mockTestCatalog: MockTestCatalog[] = [
   { id: 26, code: "END-002", name: "Free T4", categoryId: 5, categoryName: "Endokrin", sampleType: "serum", unit: "ng/dL", referenceMin: "0.8", referenceMax: "1.8", referenceText: null, price: "175000", turnaroundHours: 8, active: true, createdAt: new Date("2024-01-01") },
   { id: 27, code: "KOA-001", name: "PT (Prothrombin Time)", categoryId: 6, categoryName: "Koagulasi", sampleType: "plasma", unit: "detik", referenceMin: "10", referenceMax: "14", referenceText: null, price: "85000", turnaroundHours: 4, active: true, createdAt: new Date("2024-01-01") },
   { id: 28, code: "KOA-002", name: "APTT", categoryId: 6, categoryName: "Koagulasi", sampleType: "plasma", unit: "detik", referenceMin: "25", referenceMax: "35", referenceText: null, price: "85000", turnaroundHours: 4, active: true, createdAt: new Date("2024-01-01") },
+  { id: 45, code: "KIM-045", name: "eGFR (CKD-EPI 2021)", categoryId: 2, categoryName: "Kimia Klinik", sampleType: "serum", unit: "mL/menit/1,73 m²", referenceMin: "90", referenceMax: null, referenceText: ">= 90", price: "0", turnaroundHours: 4, active: true, createdAt: new Date("2025-01-01") },
 ];
 
 const now = new Date();

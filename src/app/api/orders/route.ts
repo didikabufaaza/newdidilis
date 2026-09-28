@@ -4,6 +4,7 @@ import { labOrders, patients, doctors, orderItems, testCatalog } from "@/db/sche
 import { eq, ilike, or, sql, desc, and } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
 import { mockLabOrders, mockPatients, mockTestCatalog, addMockOrderItem } from "@/lib/mock-data";
+import { EGFREPICode, isCreatinineTestCode, isUreumTestCode } from "@/lib/egfr";
 
 export async function GET(request: NextRequest) {
   const user = await getAuthUser();
@@ -201,10 +202,23 @@ export async function POST(request: NextRequest) {
     };
     mockLabOrders.push(newOrder);
 
+    const selectedCodes = testIds.map(
+      (id: number) => mockTestCatalog.find((t) => t.id === id)?.code
+    );
+    const hasCreatinine = selectedCodes.some(isCreatinineTestCode);
+    const hasUreum = selectedCodes.some(isUreumTestCode);
+
     for (const testId of testIds) {
       const test = mockTestCatalog.find((t) => t.id === testId);
       if (test) {
         addMockOrderItem(nextId, test.id, test.code, test.name, test.categoryName, test.unit, test.referenceMin, test.referenceMax, test.referenceText);
+      }
+    }
+
+    if (hasCreatinine && hasUreum) {
+      const egfr = mockTestCatalog.find((t) => t.code === EGFREPICode);
+      if (egfr) {
+        addMockOrderItem(nextId, egfr.id, egfr.code, egfr.name, egfr.categoryName, egfr.unit, egfr.referenceMin, egfr.referenceMax, egfr.referenceText);
       }
     }
 
@@ -266,7 +280,22 @@ export async function POST(request: NextRequest) {
 
     tests.sort((a, b) => testIds.indexOf(a.id) - testIds.indexOf(b.id));
 
-    const totalPrice = tests.reduce(
+    const hasCreatinine = tests.some((t) => isCreatinineTestCode(t.code));
+    const hasUreum = tests.some((t) => isUreumTestCode(t.code));
+    let autoTests: typeof tests = [];
+    if (hasCreatinine && hasUreum) {
+      const egfr = await db
+        .select()
+        .from(testCatalog)
+        .where(eq(testCatalog.code, EGFREPICode))
+        .limit(1);
+      if (egfr[0] && !tests.some((t) => t.id === egfr[0].id)) {
+        autoTests = egfr;
+      }
+    }
+    const allTests = [...tests, ...autoTests];
+
+    const totalPrice = allTests.reduce(
       (sum, t) => sum + parseFloat(t.price || "0"),
       0
     );
@@ -295,7 +324,7 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    const items = tests.map((t) => ({
+    const items = allTests.map((t) => ({
       orderId: order.id,
       testId: t.id,
       resultStatus: "pending" as const,
