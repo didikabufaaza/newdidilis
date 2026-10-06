@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { apiGet } from "@/lib/api-client";
+import OrderFilterBar from "@/components/OrderFilterBar";
 
 interface LetterheadSettings {
   pemda: string | null;
@@ -320,38 +321,51 @@ function PrintContent() {
   const [loading, setLoading] = useState(true);
   const [loadingOrder, setLoadingOrder] = useState(false);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [recentOnly, setRecentOnly] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      apiGet<{ orders: Order[] }>("/api/orders?limit=100", 10_000),
-      apiGet<{ settings: LetterheadSettings | null }>("/api/settings/letterhead", 60_000),
-    ]).then(([ordersData, lh]) => {
-      setOrders(ordersData.orders || []);
-      setLetterhead(lh.settings);
-      setLoading(false);
+    apiGet<{ settings: LetterheadSettings | null }>("/api/settings/letterhead", 60_000)
+      .then((lh) => setLetterhead(lh.settings))
+      .catch(() => {});
+  }, []);
 
-      if (preselectedOrderId) {
-        loadOrderDetail(parseInt(preselectedOrderId));
-      }
-    });
-  }, [preselectedOrderId]);
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (statusFilter) params.set("status", statusFilter);
+      if (recentOnly && !search) params.set("recent24", "1");
+      params.set("limit", "30");
+      const data = await apiGet<{ orders: Order[] }>(`/api/orders?${params}`, 10_000);
+      setOrders(data.orders || []);
+    } catch {
+      setOrders([]);
+    }
+    setLoading(false);
+  }, [search, statusFilter, recentOnly]);
 
-  const loadOrderDetail = async (orderId: number) => {
+  useEffect(() => {
+    const t = setTimeout(() => fetchOrders(), 250);
+    return () => clearTimeout(t);
+  }, [fetchOrders]);
+
+  const loadOrderDetail = useCallback(async (orderId: number) => {
     setSelectedOrderId(orderId);
     setLoadingOrder(true);
     const data = await apiGet<{ order: any; items: OrderItem[] }>(`/api/orders/${orderId}`, 10_000);
     setOrder(data.order);
     setItems(data.items.filter((i: OrderItem) => i.result));
     setLoadingOrder(false);
-  };
+  }, []);
 
-  const filteredOrders = orders.filter(
-    (o) =>
-      o.orderNo.toLowerCase().includes(search.toLowerCase()) ||
-      (o.noPermintaan && o.noPermintaan.toLowerCase().includes(search.toLowerCase())) ||
-      (o.noLab && o.noLab.toLowerCase().includes(search.toLowerCase())) ||
-      o.patientName.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    if (preselectedOrderId) {
+      loadOrderDetail(parseInt(preselectedOrderId));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePrint = () => {
     window.print();
@@ -390,24 +404,33 @@ function PrintContent() {
           {/* Order List */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm sticky top-6">
-              <div className="p-4 border-b border-gray-200 bg-gray-50">
-                <input
-                  type="text"
-                  placeholder="Cari No. Lab / Pasien..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                />
-              </div>
+              <OrderFilterBar
+                search={search}
+                onSearchChange={setSearch}
+                status={statusFilter}
+                onStatusChange={setStatusFilter}
+                recentOnly={recentOnly}
+                onRecentChange={setRecentOnly}
+                onReset={() => {
+                  setSearch("");
+                  setStatusFilter("");
+                  setRecentOnly(true);
+                }}
+              />
+              {recentOnly && !search && !statusFilter && (
+                <div className="px-4 py-2 border-b border-gray-100 text-[11px] text-gray-500 bg-blue-50/50">
+                  Menampilkan data <strong>24 jam terakhir</strong>. Gunakan kolom pencarian/filter untuk mencari data lebih lama.
+                </div>
+              )}
               <div className="max-h-[65vh] overflow-y-auto divide-y divide-gray-100">
                 {loading ? (
                   <div className="p-8 text-center">
                     <div className="animate-spin h-6 w-6 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
                   </div>
-                ) : filteredOrders.length === 0 ? (
+                ) : orders.length === 0 ? (
                   <div className="p-8 text-center text-sm text-gray-500">Tidak ada order ditemukan</div>
                 ) : (
-                  filteredOrders.map((o) => (
+                  orders.map((o) => (
                     <button
                       key={o.id}
                       onClick={() => loadOrderDetail(o.id)}

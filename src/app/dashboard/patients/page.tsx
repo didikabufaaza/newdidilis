@@ -61,6 +61,9 @@ export default function PatientsPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [genderFilter, setGenderFilter] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("");
+  const [recentOnly, setRecentOnly] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -94,6 +97,9 @@ export default function PatientsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ search, page: String(page), limit: "15" });
+      if (genderFilter) params.set("gender", genderFilter);
+      if (paymentFilter) params.set("paymentStatus", paymentFilter);
+      if (recentOnly && !search) params.set("recent24", "1");
 
       const data = await apiGet<{ patients?: Patient[]; totalPages?: number; total?: number }>(`/api/patients?${params}`);
       setPatients(data.patients || []);
@@ -103,7 +109,7 @@ export default function PatientsPage() {
       setPatients([]);
     }
     setLoading(false);
-  }, [search, page]);
+  }, [search, genderFilter, paymentFilter, recentOnly, page]);
 
   useEffect(() => {
     fetchPatients();
@@ -117,7 +123,7 @@ export default function PatientsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, genderFilter, paymentFilter, recentOnly]);
 
   // Helper function to calculate age from date of birth
   const calculateAgeFromDob = (dobString: string): string => {
@@ -286,16 +292,66 @@ export default function PatientsPage() {
       </div>
 
       {/* Search Filter */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-          <input
-            type="text"
-            placeholder="Cari nama, No. RM, No. Lab, No. Permintaan..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-          />
+      <div className="mb-6 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+            <input
+              type="text"
+              placeholder="Cari nama, No. RM, No. Lab, No. Permintaan, telepon..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+            />
+          </div>
+          <select
+            value={genderFilter}
+            onChange={(e) => setGenderFilter(e.target.value)}
+            className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="">Semua Jenis Kelamin</option>
+            <option value="male">Laki-laki (L)</option>
+            <option value="female">Perempuan (P)</option>
+          </select>
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+            className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="">Semua Pembayaran</option>
+            <option value="BPJS">BPJS</option>
+            <option value="UMUM">UMUM</option>
+            <option value="Jaminan Lainnya">Jaminan Lainnya</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+          <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={recentOnly}
+              onChange={(e) => setRecentOnly(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 accent-blue-600"
+            />
+            Hanya pasien 24 jam terakhir
+          </label>
+          <span className="text-[11px] text-gray-400">
+            {recentOnly && !search
+              ? "Menampilkan pasien terdaftar 24 jam terakhir. Ketik pencarian untuk mencari data lebih lama."
+              : "Pencarian mencakup seluruh data pasien."}
+          </span>
+          {(search || genderFilter || paymentFilter || !recentOnly) && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setGenderFilter("");
+                setPaymentFilter("");
+                setRecentOnly(true);
+              }}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              ↺ Reset filter
+            </button>
+          )}
         </div>
       </div>
 

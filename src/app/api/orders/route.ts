@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDbAvailable } from "@/db";
 import { labOrders, patients, doctors, orderItems, testCatalog } from "@/db/schema";
-import { eq, ilike, or, sql, desc, and } from "drizzle-orm";
+import { eq, ilike, or, sql, desc, and, gte, lte } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
 import { mockLabOrders, mockPatients, mockTestCatalog, addMockOrderItem } from "@/lib/mock-data";
 import { EGFREPICode, isCreatinineTestCode, isUreumTestCode } from "@/lib/egfr";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
   const user = await getAuthUser();
@@ -17,12 +19,17 @@ export async function GET(request: NextRequest) {
   if (!(await isDbAvailable())) {
     const search = request.nextUrl.searchParams.get("search") || "";
     const status = request.nextUrl.searchParams.get("status") || "";
+    const recent24 = ["1", "true"].includes(request.nextUrl.searchParams.get("recent24") || "");
     const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
 
     let filtered = mockLabOrders;
     if (viewAsUserId) {
       filtered = filtered.filter((o) => (o as any).createdBy === viewAsUserId);
+    }
+    if (recent24 && !search) {
+      const cutoff = Date.now() - DAY_MS;
+      filtered = filtered.filter((o) => new Date(o.createdAt).getTime() >= cutoff);
     }
     if (search) {
       const q = search.toLowerCase();
@@ -53,19 +60,32 @@ export async function GET(request: NextRequest) {
   try {
     const search = request.nextUrl.searchParams.get("search") || "";
     const status = request.nextUrl.searchParams.get("status") || "";
+    const recent24 = ["1", "true"].includes(request.nextUrl.searchParams.get("recent24") || "");
+    const dateFrom = request.nextUrl.searchParams.get("dateFrom") || "";
+    const dateTo = request.nextUrl.searchParams.get("dateTo") || "";
     const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
     const offset = (page - 1) * limit;
 
-    const conditions = [];
+    const conditions: any[] = [];
     if (viewAsUserId) {
       conditions.push(eq(labOrders.createdBy, viewAsUserId));
+    }
+    if (recent24 && !search) {
+      conditions.push(sql`${labOrders.createdAt} >= now() - interval '24 hours'`);
+    }
+    if (dateFrom) {
+      conditions.push(gte(labOrders.createdAt, new Date(`${dateFrom}T00:00:00`)));
+    }
+    if (dateTo) {
+      conditions.push(lte(labOrders.createdAt, new Date(`${dateTo}T23:59:59.999`)));
     }
     if (search) {
       conditions.push(
         or(
           ilike(labOrders.orderNo, `%${search}%`),
           ilike(labOrders.noPermintaan, `%${search}%`),
+          ilike(labOrders.noLab, `%${search}%`),
           ilike(patients.name, `%${search}%`),
           ilike(patients.medicalRecordNo, `%${search}%`)
         )

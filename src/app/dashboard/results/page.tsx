@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AnalysisResultPanel from "@/components/AnalysisResultPanel";
+import OrderFilterBar from "@/components/OrderFilterBar";
 import { getCanAnalyzeClient } from "@/lib/client-analysis";
 import { apiGet, clearApiCache } from "@/lib/api-client";
 import {
@@ -67,6 +68,8 @@ function ResultsContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [recentOnly, setRecentOnly] = useState(true);
   const [results, setResults] = useState<Record<number, { result: string; flag: string; notes: string }>>({});
   const [previousResults, setPreviousResults] = useState<{ orderNo: string; orderDate: Date; items: { testCode: string; testName: string; result: string; unit: string | null; referenceMin: string | null; referenceMax: string | null; flag: string | null }[] }[]>([]);
   const [showDelta, setShowDelta] = useState(false);
@@ -78,13 +81,28 @@ function ResultsContent() {
 
   useEffect(() => {
     setCanAnalyze(getCanAnalyzeClient());
-    apiGet<{ orders: Order[] }>("/api/orders?limit=100", 10_000)
-      .then((data) => {
-        setOrders(data.orders || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
   }, []);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (statusFilter) params.set("status", statusFilter);
+      if (recentOnly && !search) params.set("recent24", "1");
+      params.set("limit", "30");
+      const data = await apiGet<{ orders: Order[] }>(`/api/orders?${params}`, 10_000);
+      setOrders(data.orders || []);
+    } catch {
+      setOrders([]);
+    }
+    setLoading(false);
+  }, [search, statusFilter, recentOnly]);
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchOrders(), 250);
+    return () => clearTimeout(t);
+  }, [fetchOrders]);
 
   const loadOrder = useCallback(
     (orderId: number, silent: boolean = false) => {
@@ -333,14 +351,6 @@ function ResultsContent() {
     }
   };
 
-  const filteredOrders = orders.filter(
-    (o) =>
-      o.orderNo.toLowerCase().includes(search.toLowerCase()) ||
-      (o.noLab && o.noLab.toLowerCase().includes(search.toLowerCase())) ||
-      (o.noPermintaan && o.noPermintaan.toLowerCase().includes(search.toLowerCase())) ||
-      o.patientName.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-6">
@@ -354,24 +364,34 @@ function ResultsContent() {
         {/* Left Column: Order List */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm sticky top-6">
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
-              <input
-                type="text"
-                placeholder="Cari order / nama pasien..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-              />
-            </div>
+            <OrderFilterBar
+              search={search}
+              onSearchChange={setSearch}
+              status={statusFilter}
+              onStatusChange={setStatusFilter}
+              recentOnly={recentOnly}
+              onRecentChange={setRecentOnly}
+              onReset={() => {
+                setSearch("");
+                setStatusFilter("");
+                setRecentOnly(true);
+              }}
+              searchPlaceholder="Cari No. Lab / No. Permintaan / Nama Pasien / No. RM..."
+            />
+            {recentOnly && !search && !statusFilter && (
+              <div className="px-4 py-2 border-b border-gray-100 text-[11px] text-gray-500 bg-blue-50/50">
+                Menampilkan data <strong>24 jam terakhir</strong>. Gunakan kolom pencarian/filter untuk mencari data lebih lama.
+              </div>
+            )}
             <div className="max-h-[65vh] overflow-y-auto divide-y divide-gray-100">
               {loading ? (
                 <div className="p-8 text-center">
                   <div className="animate-spin h-6 w-6 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
                 </div>
-              ) : filteredOrders.length === 0 ? (
+              ) : orders.length === 0 ? (
                 <div className="p-8 text-center text-sm text-gray-500">Tidak ada order yang siap diinput</div>
               ) : (
-                filteredOrders.map((o) => (
+                orders.map((o) => (
                   <button
                     key={o.id}
                     onClick={() => setSelectedOrderId(o.id)}

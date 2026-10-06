@@ -5,6 +5,8 @@ import { eq, ilike, or, sql, desc, and } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
 import { mockPatients } from "@/lib/mock-data";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export async function GET(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) {
@@ -15,12 +17,19 @@ export async function GET(request: NextRequest) {
 
   if (!(await isDbAvailable())) {
     const search = request.nextUrl.searchParams.get("search") || "";
+    const gender = request.nextUrl.searchParams.get("gender") || "";
+    const paymentStatus = request.nextUrl.searchParams.get("paymentStatus") || "";
+    const recent24 = ["1", "true"].includes(request.nextUrl.searchParams.get("recent24") || "");
     const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
 
     let filtered = mockPatients;
     if (viewAsUserId) {
       filtered = filtered.filter((p) => (p as any).createdBy === viewAsUserId);
+    }
+    if (recent24 && !search) {
+      const cutoff = Date.now() - DAY_MS;
+      filtered = filtered.filter((p) => new Date(p.createdAt).getTime() >= cutoff);
     }
     if (search) {
       const q = search.toLowerCase();
@@ -32,6 +41,12 @@ export async function GET(request: NextRequest) {
           (p.noPermintaan && p.noPermintaan.toLowerCase().includes(q)) ||
           (p.phone && p.phone.toLowerCase().includes(q))
       );
+    }
+    if (gender) {
+      filtered = filtered.filter((p) => p.gender === gender);
+    }
+    if (paymentStatus) {
+      filtered = filtered.filter((p) => (p as any).paymentStatus === paymentStatus);
     }
 
     const total = filtered.length;
@@ -48,13 +63,25 @@ export async function GET(request: NextRequest) {
 
   try {
     const search = request.nextUrl.searchParams.get("search") || "";
+    const gender = request.nextUrl.searchParams.get("gender") || "";
+    const paymentStatus = request.nextUrl.searchParams.get("paymentStatus") || "";
+    const recent24 = ["1", "true"].includes(request.nextUrl.searchParams.get("recent24") || "");
     const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
     const offset = (page - 1) * limit;
 
-    const conditions = [];
+    const conditions: any[] = [];
     if (viewAsUserId) {
       conditions.push(eq(patients.createdBy, viewAsUserId));
+    }
+    if (recent24 && !search) {
+      conditions.push(sql`${patients.createdAt} >= now() - interval '24 hours'`);
+    }
+    if (gender) {
+      conditions.push(eq(patients.gender, gender as "male" | "female"));
+    }
+    if (paymentStatus) {
+      conditions.push(eq(patients.paymentStatus, paymentStatus));
     }
     if (search) {
       conditions.push(
