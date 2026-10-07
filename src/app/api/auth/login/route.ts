@@ -9,18 +9,18 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 
 async function findUserByEmailOrUsername(identifier: string) {
-  try {
-    if (await isDbAvailable()) {
+  if (await isDbAvailable()) {
+    try {
       const { db } = await import("@/db");
       const { users } = await import("@/db/schema");
       const { eq, or } = await import("drizzle-orm");
       const result = await db.select().from(users).where(
         or(eq(users.email, identifier), eq(users.username, identifier))
       ).limit(1);
-      if (result[0]) return result[0];
+      return result[0] || null;
+    } catch (err) {
+      console.warn("DB query failed, using mock:", err);
     }
-  } catch (err) {
-    console.warn("DB query failed, using mock:", err);
   }
   const mockUsers = await getMutableMockUsers();
   return mockUsers.find((u) => u.email === identifier || u.username === identifier) || null;
