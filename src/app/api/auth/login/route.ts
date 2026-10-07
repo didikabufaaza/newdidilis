@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isDbAvailable } from "@/db";
 import { getMutableMockUsers } from "@/lib/mock-data";
 import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
@@ -9,13 +10,15 @@ const JWT_SECRET = new TextEncoder().encode(
 
 async function findUserByEmailOrUsername(identifier: string) {
   try {
-    const { db } = await import("@/db");
-    const { users } = await import("@/db/schema");
-    const { eq, or } = await import("drizzle-orm");
-    const result = await db.select().from(users).where(
-      or(eq(users.email, identifier), eq(users.username, identifier))
-    ).limit(1);
-    if (result[0]) return result[0];
+    if (await isDbAvailable()) {
+      const { db } = await import("@/db");
+      const { users } = await import("@/db/schema");
+      const { eq, or } = await import("drizzle-orm");
+      const result = await db.select().from(users).where(
+        or(eq(users.email, identifier), eq(users.username, identifier))
+      ).limit(1);
+      if (result[0]) return result[0];
+    }
   } catch (err) {
     console.warn("DB query failed, using mock:", err);
   }
