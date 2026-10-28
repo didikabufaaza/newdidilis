@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { isDbAvailable } from "@/db";
+import { db, isDbAvailable } from "@/db";
+import { labOrders, patients, orderItems } from "@/db/schema";
+import { eq, sql, count, and } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
-import { mockLabOrders, mockPatients, mockTestCategories, mockTestCatalog, getMockOrderItems, mockTestPackages, mockDoctors, mockLetterhead } from "@/lib/mock-data";
+import { mockLabOrders, mockPatients, getMockOrderItems } from "@/lib/mock-data";
 
 function getMockDashboard(viewAsUserId?: number) {
   let orders = mockLabOrders;
@@ -68,10 +70,6 @@ export async function GET() {
   }
 
   try {
-    const { db } = await import("@/db");
-    const { labOrders, patients, orderItems } = await import("@/db/schema");
-    const { eq, sql, count, and } = await import("drizzle-orm");
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -79,10 +77,10 @@ export async function GET() {
     const patientViewAsCondition = viewAsUserId ? eq(patients.createdBy, viewAsUserId) : undefined;
     const aggWhere = viewAsUserId ? sql`created_by = ${viewAsUserId}` : sql`TRUE`;
 
+    // Consolidated 4 parallel queries instead of 5 unoptimized queries
     const [
       totalPatients,
       aggRows,
-      statusCountRows,
       recentOrders,
       pendingResults,
     ] = await Promise.all([
@@ -95,14 +93,25 @@ export async function GET() {
           count(*) FILTER (WHERE created_at >= ${today})::int AS today_orders,
           count(*) FILTER (WHERE status IN ('registered', 'sample_collected'))::int AS pending_orders,
           count(*) FILTER (WHERE status = 'in_progress')::int AS in_progress_orders,
-          count(*) FILTER (WHERE status IN ('completed', 'validated', 'reported'))::int AS completed_orders
+          count(*) FILTER (WHERE status IN ('completed', 'validated', 'reported'))::int AS completed_orders,
+          count(*) FILTER (WHERE status = 'registered')::int AS c_registered,
+          count(*) FILTER (WHERE status = 'sample_collected')::int AS c_sample_collected,
+          count(*) FILTER (WHERE status = 'in_progress')::int AS c_in_progress,
+          count(*) FILTER (WHERE status = 'completed')::int AS c_completed,
+          count(*) FILTER (WHERE status = 'validated')::int AS c_validated,
+          count(*) FILTER (WHERE status = 'reported')::int AS c_reported
         FROM lab_orders
         WHERE ${aggWhere}
       `),
-      viewAsUserId
-        ? db.select({ status: labOrders.status, count: count() }).from(labOrders).where(viewAsCondition).groupBy(labOrders.status)
-        : db.select({ status: labOrders.status, count: count() }).from(labOrders).groupBy(labOrders.status),
-      db.select({ id: labOrders.id, orderNo: labOrders.orderNo, status: labOrders.status, priority: labOrders.priority, createdAt: labOrders.createdAt, patientName: patients.name, patientMrn: patients.medicalRecordNo })
+      db.select({
+        id: labOrders.id,
+        orderNo: labOrders.orderNo,
+        status: labOrders.status,
+        priority: labOrders.priority,
+        createdAt: labOrders.createdAt,
+        patientName: patients.name,
+        patientMrn: patients.medicalRecordNo,
+      })
         .from(labOrders)
         .innerJoin(patients, eq(labOrders.patientId, patients.id))
         .where(viewAsCondition)
@@ -113,7 +122,16 @@ export async function GET() {
         : db.select({ count: count() }).from(orderItems).where(eq(orderItems.resultStatus, "pending")),
     ]);
 
-    const agg = aggRows.rows[0];
+    const agg = aggRows.rows[0] as any;
+
+    const statusCounts: Record<string, number> = {
+      registered: Number(agg.c_registered || 0),
+      sample_collected: Number(agg.c_sample_collected || 0),
+      in_progress: Number(agg.c_in_progress || 0),
+      completed: Number(agg.c_completed || 0),
+      validated: Number(agg.c_validated || 0),
+      reported: Number(agg.c_reported || 0),
+    };
 
     return NextResponse.json({
       stats: {
@@ -125,7 +143,7 @@ export async function GET() {
         completedOrders: agg.completed_orders,
         pendingResults: pendingResults[0].count,
       },
-      statusCounts: statusCountRows.reduce((acc, s) => ({ ...acc, [s.status]: s.count }), {} as Record<string, number>),
+      statusCounts,
       recentOrders,
     });
   } catch (err) {

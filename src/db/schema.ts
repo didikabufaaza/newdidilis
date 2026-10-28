@@ -98,6 +98,9 @@ export const patients = pgTable(
   (table) => [
     index("idx_patients_doctor_id").on(table.doctorId),
     index("idx_patients_created_by").on(table.createdBy),
+    index("idx_patients_created_at").on(table.createdAt),
+    index("idx_patients_no_lab").on(table.noLab),
+    index("idx_patients_no_permintaan").on(table.noPermintaan),
   ]
 );
 
@@ -180,6 +183,8 @@ export const labOrders = pgTable(
     index("idx_lab_orders_status").on(table.status),
     index("idx_lab_orders_created_at").on(table.createdAt),
     index("idx_lab_orders_request_date").on(table.requestDate),
+    index("idx_lab_orders_no_lab").on(table.noLab),
+    index("idx_lab_orders_no_permintaan").on(table.noPermintaan),
   ]
 );
 

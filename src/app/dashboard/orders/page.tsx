@@ -33,16 +33,24 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [deleting, setDeleting] = useState<number | null>(null);
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ search, page: String(page), limit: "15" });
+      const params = new URLSearchParams({ search: debouncedSearch, page: String(page), limit: "15" });
       if (statusFilter) params.set("status", statusFilter);
       const data = await apiGet<{ orders?: Order[]; totalPages?: number; total?: number }>(`/api/orders?${params}`);
       setOrders(data.orders || []);
@@ -52,7 +60,7 @@ export default function OrdersPage() {
       setOrders([]);
     }
     setLoading(false);
-  }, [search, statusFilter, page]);
+  }, [debouncedSearch, statusFilter, page]);
 
   useEffect(() => {
     fetchOrders();
@@ -60,7 +68,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [debouncedSearch, statusFilter]);
 
   const handleDelete = async (oid: number) => {
     if (!confirm("Yakin ingin menghapus order ini?")) return;

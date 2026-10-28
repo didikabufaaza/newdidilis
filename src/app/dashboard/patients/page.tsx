@@ -61,6 +61,7 @@ export default function PatientsPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [recentOnly, setRecentOnly] = useState(true);
@@ -71,6 +72,13 @@ export default function PatientsPage() {
   const [editing, setEditing] = useState<Patient | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   // Form State
   const [form, setForm] = useState({
@@ -96,10 +104,10 @@ export default function PatientsPage() {
   const fetchPatients = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ search, page: String(page), limit: "15" });
+      const params = new URLSearchParams({ search: debouncedSearch, page: String(page), limit: "15" });
       if (genderFilter) params.set("gender", genderFilter);
       if (paymentFilter) params.set("paymentStatus", paymentFilter);
-      if (recentOnly && !search) params.set("recent24", "1");
+      if (recentOnly && !debouncedSearch) params.set("recent24", "1");
 
       const data = await apiGet<{ patients?: Patient[]; totalPages?: number; total?: number }>(`/api/patients?${params}`);
       setPatients(data.patients || []);
@@ -109,7 +117,7 @@ export default function PatientsPage() {
       setPatients([]);
     }
     setLoading(false);
-  }, [search, genderFilter, paymentFilter, recentOnly, page]);
+  }, [debouncedSearch, genderFilter, paymentFilter, recentOnly, page]);
 
   useEffect(() => {
     fetchPatients();
@@ -123,7 +131,7 @@ export default function PatientsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, genderFilter, paymentFilter, recentOnly]);
+  }, [debouncedSearch, genderFilter, paymentFilter, recentOnly]);
 
   // Helper function to calculate age from date of birth
   const calculateAgeFromDob = (dobString: string): string => {

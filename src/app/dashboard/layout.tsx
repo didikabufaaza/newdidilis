@@ -54,17 +54,16 @@ export default function DashboardLayout({
       return;
     }
 
-    // Prefetch the data most menus need - served instantly from the API cache.
-    prefetchApi([
-      "/api/orders?recent24=1&limit=30",
-      "/api/orders?limit=100",
-      "/api/dashboard",
-      "/api/tests?all=true",
-      "/api/doctors",
-      "/api/packages",
-      "/api/tests/categories",
-      "/api/settings/letterhead",
-    ]).catch(() => {});
+    // Gently prefetch frequently used master data in the background without blocking initial render.
+    const prefetchTimer = setTimeout(() => {
+      prefetchApi([
+        "/api/tests?all=true",
+        "/api/doctors",
+        "/api/packages",
+        "/api/tests/categories",
+        "/api/settings/letterhead",
+      ]).catch(() => {});
+    }, 1000);
 
     // Background re-validation + canAnalyze/imgAccess refresh.
     fetch("/api/auth/me", {
@@ -84,6 +83,8 @@ export default function DashboardLayout({
         localStorage.removeItem("lis_token");
         window.location.href = "/login";
       });
+
+    return () => clearTimeout(prefetchTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
