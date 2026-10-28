@@ -277,15 +277,16 @@ export async function POST(request: NextRequest) {
 
     const currentYear = new Date().getFullYear();
 
-    const lastOrder = await db
-      .select({ id: labOrders.id })
-      .from(labOrders)
-      .orderBy(desc(labOrders.id))
-      .limit(1);
-
-    const nextId = (lastOrder[0]?.id || 0) + 1;
-    const orderNo = `LAB-${currentYear}-${String(nextId).padStart(4, "0")}`;
-    const noPermintaan = patient.noPermintaan || `REQ-${currentYear}-${String(nextId).padStart(4, "0")}`;
+    // Query true max sequence for orderNo in current year
+    const maxOrderResult = await db.execute(sql`
+      SELECT COALESCE(MAX(SUBSTRING(order_no FROM '[0-9]+$')::int), 0) AS max_order
+      FROM lab_orders
+      WHERE order_no LIKE ${'LAB-' + currentYear + '-%'}
+    `);
+    const maxOrder = Number((maxOrderResult.rows[0] as any)?.max_order || 0);
+    const nextOrderSeq = maxOrder + 1;
+    const orderNo = `LAB-${currentYear}-${String(nextOrderSeq).padStart(4, "0")}`;
+    const noPermintaan = patient.noPermintaan || `REQ-${currentYear}-${String(nextOrderSeq).padStart(4, "0")}`;
     const noLab = patient.noLab || orderNo;
 
     const tests = await db

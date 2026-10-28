@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
-import { apiGet, clearApiCache } from "@/lib/api-client";
+import { apiGet, apiMutate, clearApiCache } from "@/lib/api-client";
 
 interface Order {
   id: number;
@@ -74,15 +74,10 @@ export default function OrdersPage() {
     if (!confirm("Yakin ingin menghapus order ini?")) return;
     setDeleting(oid);
     try {
-      const res = await fetch(`/api/orders/${oid}`, { method: "DELETE" });
-      if (res.ok) {
-        clearApiCache();
-        fetchOrders();
-      } else {
-        alert("Gagal menghapus order");
-      }
-    } catch {
-      alert("Gagal menghapus order");
+      await apiMutate(`/api/orders/${oid}`, "DELETE");
+      fetchOrders();
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus order");
     }
     setDeleting(null);
   };

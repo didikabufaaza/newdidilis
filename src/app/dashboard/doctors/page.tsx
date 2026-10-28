@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { apiGet, clearApiCache } from "@/lib/api-client";
+import { apiGet, apiMutate, clearApiCache } from "@/lib/api-client";
 
 interface Doctor {
   id: number;
@@ -82,19 +82,12 @@ export default function DoctorsPage() {
       const url = editing ? `/api/doctors/${editing.id}` : "/api/doctors";
       const method = editing ? "PUT" : "POST";
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      if (res.ok) {
-        clearApiCache();
-        setShowModal(false);
-        fetchDoctors();
-      }
-    } catch (err) {
+      await apiMutate(url, method, form);
+      setShowModal(false);
+      fetchDoctors();
+    } catch (err: any) {
       console.error(err);
+      alert(err.message || "Gagal menyimpan data dokter");
     }
 
     setSaving(false);
@@ -105,15 +98,10 @@ export default function DoctorsPage() {
 
     setDeleting(id);
     try {
-      const res = await fetch(`/api/doctors/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        clearApiCache();
-        fetchDoctors();
-      } else {
-        alert("Gagal menghapus dokter");
-      }
-    } catch {
-      alert("Gagal menghapus dokter");
+      await apiMutate(`/api/doctors/${id}`, "DELETE");
+      fetchDoctors();
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus dokter");
     }
     setDeleting(null);
   };

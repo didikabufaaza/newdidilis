@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { apiGet, clearApiCache } from "@/lib/api-client";
+import { apiGet, apiMutate, clearApiCache } from "@/lib/api-client";
 
 interface Test {
   id: number;
@@ -99,28 +99,18 @@ export default function PackagesPage() {
       const url = editing ? `/api/packages/${editing.id}` : "/api/packages";
       const method = editing ? "PUT" : "POST";
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: form.code,
-          name: form.name,
-          description: form.description,
-          price: form.price || "0",
-          testIds: selectedTestIds,
-        }),
+      await apiMutate(url, method, {
+        code: form.code,
+        name: form.name,
+        description: form.description,
+        price: form.price || "0",
+        testIds: selectedTestIds,
       });
 
-      if (res.ok) {
-        clearApiCache();
-        setShowModal(false);
-        fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error || "Gagal menyimpan");
-      }
-    } catch {
-      alert("Gagal menyimpan");
+      setShowModal(false);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || "Gagal menyimpan");
     }
     setSaving(false);
   };
@@ -129,10 +119,11 @@ export default function PackagesPage() {
     if (!confirm("Yakin ingin menghapus paket ini?")) return;
     setDeleting(id);
     try {
-      await fetch(`/api/packages/${id}`, { method: "DELETE" });
-      clearApiCache();
+      await apiMutate(`/api/packages/${id}`, "DELETE");
       fetchData();
-    } catch {}
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus paket");
+    }
     setDeleting(null);
   };
 

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { apiGet, clearApiCache } from "@/lib/api-client";
+import { apiGet, apiMutate, clearApiCache } from "@/lib/api-client";
 
 interface Patient {
   id: number;
@@ -169,13 +169,10 @@ export default function PatientsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    const currentYear = new Date().getFullYear();
-    const nextSeq = String(total + 1).padStart(4, "0");
-
     setForm({
-      noLab: `LAB-${currentYear}-${nextSeq} (Otomatis)`,
-      noPermintaan: `REQ-${currentYear}-${nextSeq} (Otomatis)`,
-      medicalRecordNo: `RM-${currentYear}-${nextSeq}`,
+      noLab: "Otomatis oleh sistem",
+      noPermintaan: "Otomatis oleh sistem",
+      medicalRecordNo: "",
       name: "",
       gender: "male",
       dateOfBirth: "",
@@ -233,31 +230,20 @@ export default function PatientsPage() {
         paymentStatus: form.paymentStatus === "Jaminan Lainnya" ? form.customPayment : form.paymentStatus,
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(submitData),
-      });
+      const data = await apiMutate<{ patient: Patient }>(url, method, submitData);
 
-      if (res.ok) {
-        clearApiCache();
-        setShowModal(false);
+      setShowModal(false);
 
-        // Jika buat pasien baru, langsung masuk ke menu order pemeriksaan lab
-        if (!editing) {
-          const data = await res.json();
-          window.location.href = `/dashboard/orders/new?patientId=${data.patient.id}`;
-          return;
-        }
-
-        fetchPatients();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Gagal menyimpan pasien");
+      // Jika buat pasien baru, langsung masuk ke menu order pemeriksaan lab
+      if (!editing && data?.patient?.id) {
+        window.location.href = `/dashboard/orders/new?patientId=${data.patient.id}`;
+        return;
       }
-    } catch (err) {
+
+      fetchPatients();
+    } catch (err: any) {
       console.error(err);
-      alert("Terjadi kesalahan koneksi");
+      alert(err.message || "Gagal menyimpan pasien");
     }
 
     setSaving(false);
@@ -268,15 +254,10 @@ export default function PatientsPage() {
 
     setDeleting(id);
     try {
-      const res = await fetch(`/api/patients/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        clearApiCache();
-        fetchPatients();
-      } else {
-        alert("Gagal menghapus pasien. Mungkin masih ada data order terkait.");
-      }
-    } catch {
-      alert("Gagal menghapus pasien");
+      await apiMutate(`/api/patients/${id}`, "DELETE");
+      fetchPatients();
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus pasien. Mungkin masih ada data order terkait.");
     }
     setDeleting(null);
   };

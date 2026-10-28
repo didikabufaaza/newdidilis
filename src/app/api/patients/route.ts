@@ -225,21 +225,51 @@ export async function POST(request: NextRequest) {
 
     const currentYear = new Date().getFullYear();
 
-    const lastPatient = await db
-      .select({ id: patients.id })
-      .from(patients)
-      .orderBy(desc(patients.id))
-      .limit(1);
+    // Query true max sequence numbers from DB to prevent collisions
+    const maxSeqResult = await db.execute(sql`
+      SELECT
+        COALESCE(MAX(SUBSTRING(medical_record_no FROM '[0-9]+$')::int), 0) AS max_rm,
+        COALESCE(MAX(SUBSTRING(no_lab FROM '[0-9]+$')::int), 0) AS max_lab,
+        COALESCE(MAX(SUBSTRING(no_permintaan FROM '[0-9]+$')::int), 0) AS max_req
+      FROM patients
+      WHERE medical_record_no LIKE ${`RM-${currentYear}-%`}
+    `);
 
-    const nextId = (lastPatient[0]?.id || 0) + 1;
-    const padded = String(nextId).padStart(4, "0");
+    const maxRow = (maxSeqResult.rows[0] as any) || {};
+    const maxRm = Number(maxRow.max_rm || 0);
+    const maxLab = Number(maxRow.max_lab || 0);
+    const maxReq = Number(maxRow.max_req || 0);
 
-    const medicalRecordNo =
-      customMrn && customMrn.trim() !== ""
-        ? customMrn.trim()
-        : `RM-${currentYear}-${padded}`;
-    const noLab = `LAB-${currentYear}-${padded}`;
-    const noPermintaan = `REQ-${currentYear}-${padded}`;
+    let medicalRecordNo = "";
+    if (customMrn && customMrn.trim() !== "") {
+      const trimmed = customMrn.trim();
+      const existing = await db
+        .select({ id: patients.id })
+        .from(patients)
+        .where(eq(patients.medicalRecordNo, trimmed))
+        .limit(1);
+
+      if (existing.length > 0) {
+        // If it's the auto-generated format pattern RM-YYYY-XXXX, auto-increment safely
+        if (/^RM-\d{4}-\d+$/i.test(trimmed)) {
+          medicalRecordNo = `RM-${currentYear}-${String(maxRm + 1).padStart(4, "0")}`;
+        } else {
+          return NextResponse.json(
+            { error: `No. Rekam Medis "${trimmed}" sudah terdaftar pada pasien lain.` },
+            { status: 409 }
+          );
+        }
+      } else {
+        medicalRecordNo = trimmed;
+      }
+    } else {
+      medicalRecordNo = `RM-${currentYear}-${String(maxRm + 1).padStart(4, "0")}`;
+    }
+
+    const nextLabSeq = Math.max(maxLab, maxRm) + 1;
+    const nextReqSeq = Math.max(maxReq, maxRm) + 1;
+    const noLab = `LAB-${currentYear}-${String(nextLabSeq).padStart(4, "0")}`;
+    const noPermintaan = `REQ-${currentYear}-${String(nextReqSeq).padStart(4, "0")}`;
 
     let calculatedAge = age;
     if (!calculatedAge && dateOfBirth) {
@@ -251,6 +281,25 @@ export async function POST(request: NextRequest) {
         years--;
       }
       calculatedAge = `${years} Tahun`;
+    }
+
+    // Safely validate doctorId foreign key
+    let validDoctorId: number | null = null;
+    if (doctorId) {
+      const parsed = parseInt(String(doctorId));
+      if (!isNaN(parsed) && parsed > 0) {
+        const doc = await db.select({ id: doctors.id }).from(doctors).where(eq(doctors.id, parsed)).limit(1);
+        if (doc.length > 0) validDoctorId = parsed;
+      }
+    }
+
+    // Safely validate createdBy foreign key
+    let validCreatedBy: number | null = null;
+    const targetUserId = user.viewAsUserId || user.id;
+    if (targetUserId) {
+      const { users } = await import("@/db/schema");
+      const u = await db.select({ id: users.id }).from(users).where(eq(users.id, targetUserId)).limit(1);
+      if (u.length > 0) validCreatedBy = targetUserId;
     }
 
     const [patient] = await db
@@ -269,20 +318,34 @@ export async function POST(request: NextRequest) {
         bloodType: bloodType || null,
         insuranceNo: insuranceNo || null,
         paymentStatus: paymentStatus || "UMUM",
-        doctorId: doctorId ? parseInt(doctorId) : null,
+        doctorId: validDoctorId,
         room: room || null,
         diagnosis: diagnosis || null,
-        createdBy: user.viewAsUserId || user.id,
+        createdBy: validCreatedBy,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
       .returning();
 
     return NextResponse.json({ patient }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create patient error:", error);
+
+    if (error?.code === "23505") {
+      return NextResponse.json(
+        { error: "No. Rekam Medis (RM) sudah terdaftar. Silakan masukkan nomor lain atau biarkan otomatis." },
+        { status: 409 }
+      );
+    }
+    if (error?.code === "23503") {
+      return NextResponse.json(
+        { error: "Referensi data dokter atau pengguna tidak valid." },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Gagal membuat data pasien" },
+      { error: error?.message || "Gagal membuat data pasien" },
       { status: 500 }
     );
   }

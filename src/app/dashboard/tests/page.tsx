@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { apiGet, clearApiCache } from "@/lib/api-client";
+import { apiGet, apiMutate, clearApiCache } from "@/lib/api-client";
 
 interface Test {
   id: number;
@@ -149,27 +149,12 @@ export default function TestsPage() {
         turnaroundMinutes: form.turnaroundMinutes ? parseInt(form.turnaroundMinutes) : null,
       };
 
-      const token = localStorage.getItem("lis_token");
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(url, {
-        method,
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        clearApiCache();
-        setShowModal(false);
-        fetchTests();
-      } else {
-        const data = await res.json();
-        alert(data.error || "Gagal menyimpan");
-      }
-    } catch (err) {
+      await apiMutate(url, method, payload);
+      setShowModal(false);
+      fetchTests();
+    } catch (err: any) {
       console.error(err);
-      alert("Gagal menyimpan");
+      alert(err.message || "Gagal menyimpan");
     }
 
     setSaving(false);
@@ -180,20 +165,10 @@ export default function TestsPage() {
 
     setDeleting(id);
     try {
-      const token = localStorage.getItem("lis_token");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(`/api/tests/${id}`, { method: "DELETE", headers });
-      if (res.ok) {
-        clearApiCache();
-        fetchTests();
-      } else {
-        const data = await res.json();
-        alert(data.error || "Gagal menghapus");
-      }
-    } catch {
-      alert("Gagal menghapus");
+      await apiMutate(`/api/tests/${id}`, "DELETE");
+      fetchTests();
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus");
     }
     setDeleting(null);
   };
